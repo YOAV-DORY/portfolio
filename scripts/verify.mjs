@@ -28,7 +28,7 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--use-angle=m
 const WIDTHS = [
   { width: 320, height: 640, mobile: true },
   { width: 390, height: 844, mobile: true },
-  { width: 1280, height: 800, mobile: false },
+  { width: 1280, height: 720, mobile: false },
   { width: 1440, height: 900, mobile: false },
 ]
 const SECTIONS = ['home', 'cv', 'project-1', 'project-2', 'project-3', 'contact']
@@ -77,7 +77,7 @@ async function layoutChecks(page, label, errors) {
     }
     const hidden = []
     for (const el of document.querySelectorAll('main h2, main h3, main p, main li, main a, main dd')) {
-      if (el.closest('[aria-hidden="true"], .sr-only, #mobile-menu, .acc-panel, .skip-intro, .sequence')) continue
+      if (el.closest('[aria-hidden="true"], .sr-only, #mobile-menu, .acc-panel, .expand:not([data-open="true"]), .skip-intro, .sequence, dialog')) continue
       let n = el
       while (n && n !== document.body) {
         const s = getComputedStyle(n)
@@ -253,11 +253,44 @@ if (only.includes('projects')) {
   }
 }
 
-// Fast-scroll acceptance pass (from the external review): jump down the page in big programmatic
-// steps, pausing now and then like a skimming reader. At every pause, after 1.3 s: every count-up on
-// screen shows its real value, no revealed text is still hidden, the screen is not near-black, and a
-// screen video on screen is playing. Also: the portrait resolves without a pointer, the intro has a
-// visible skip control, and a menu tap closes the menu and lands the heading below the header.
+// Scrolling acceptance pass (from the external reviews), at 1280x720 and 390x844:
+// - slow scroll (~900 px/s) and fast scroll (big programmatic jumps), with screenshots taken WHILE
+//   moving as well as after short pauses; at every capture nothing on screen may be hidden or
+//   transparent, the screen may not be near-black, and every metric must read exactly what it read
+//   at first paint (no count-ups);
+// - the portrait resolves without a pointer, the intro shows a skip control;
+// - nav anchor jumps (desktop nav and the mobile menu) land headings below the header, and the menu
+//   closes; Back to top returns to the hero;
+// - "Show technical details": the phone diagram and code are readable (no tiny text, no sideways
+//   scroll) and the enlarge dialog opens readable, closes on Esc and returns focus.
+const VISIBLE_CHECK = () => {
+  const inView = (el) => {
+    const r = el.getBoundingClientRect()
+    return r.bottom > 64 && r.top < window.innerHeight && r.width > 0 && r.height > 0
+  }
+  const hidden = [...document.querySelectorAll('main h2, main h3, main p, main li, main dd, main dt, main img, main figure, [data-line], [data-verdict], [data-country], .acc-row')]
+    .filter((el) => !el.closest('.sr-only, .expand:not([data-open="true"]), .acc-panel, dialog, #home, .sequence > img:not(.opacity-100)') && !el.matches('.sequence > img:not(.opacity-100)'))
+    .filter(inView)
+    .filter((el) => {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        const st = getComputedStyle(n)
+        if (st.visibility === 'hidden' || Number(st.opacity) < 0.99) return true
+      }
+      return false
+    })
+    .map((el) => `${el.tagName.toLowerCase()}: ${el.textContent.trim().slice(0, 36) || el.getAttribute('alt')?.slice(0, 36) || ''}`)
+  const metrics = [...document.querySelectorAll('main dl dd')].map((d) => d.textContent)
+  const unloaded = [...document.querySelectorAll('main img')].filter(inView).filter((i) => !(i.complete && i.naturalWidth > 0)).length
+  const videos = [...document.querySelectorAll('video')]
+    .filter((v) => { const r = v.getBoundingClientRect(); return r.top < window.innerHeight * 0.75 && r.bottom > window.innerHeight * 0.25 })
+    .map((v) => ({ src: v.currentSrc.split('/').slice(-2).join('/'), readyState: v.readyState, paused: v.paused }))
+  return { y: Math.round(window.scrollY), hidden, metrics, unloaded, videos }
+}
+
+function darkness(shot) {
+  return Number(execFileSync(process.env.PYTHON ?? 'python3', ['-c', `from PIL import Image; im = Image.open('${shot}').convert('L'); h = im.histogram(); print(sum(h[:14]) / sum(h))`]).toString())
+}
+
 if (only.includes('fast')) {
   for (const vp of [WIDTHS[2], WIDTHS[1]]) {
     const { ctx, page, errors } = await context(vp, { skipIntro: false })
@@ -266,78 +299,121 @@ if (only.includes('fast')) {
     const skip = page.getByRole('button', { name: /skip intro/i })
     const skipVisible = await skip.isVisible()
     const box = await skip.boundingBox()
-    await page.waitForTimeout(5800) // intro (~3.5 s) + 2 s + the 1.2 s cross-fade
+    const firstMetrics = await page.evaluate(() => [...document.querySelectorAll('main dl dd')].map((d) => d.textContent))
+    await page.waitForTimeout(5800) // intro (~3.5 s) + 2 s + the cross-fade
     const portrait = await page.evaluate(() => getComputedStyle(document.querySelector('.portrait-static')).opacity)
-    await page.screenshot({ path: `${out}fast-${vp.width}-portrait.png` })
-    console.log(`fast ${vp.width}: skip control visible=${skipVisible} at ${box && `${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}`}; portrait resolved (opacity ${portrait})`)
+    await page.screenshot({ path: `${out}scroll-${vp.width}-portrait.png` })
+    console.log(`scroll ${vp.width}x${vp.height}: skip control visible=${skipVisible} at ${box && `${Math.round(box.x)},${Math.round(box.y)}`}; portrait opacity ${portrait}; metrics at first paint: ${firstMetrics.join(' | ')}`)
 
     const max = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
     const problems = []
-    let y = 0
-    let stop = 0
-    while (y < max) {
-      for (let i = 0; i < 3 && y < max; i++) {
-        y = Math.min(max, y + Math.round(vp.height * 0.85))
-        await page.evaluate((t) => window.scrollTo({ top: t, behavior: 'instant' }), y)
-        await page.waitForTimeout(40) // ~20 screens per second
-      }
-      await page.waitForTimeout(1300)
-      const state = await page.evaluate(() => {
-        const inView = (el) => {
-          const r = el.getBoundingClientRect()
-          return r.bottom > 64 && r.top < window.innerHeight * 0.94 && r.width > 0 // ignore the last few pixels a reveal is about to enter
-        }
-        const fmt = (el) => new Intl.NumberFormat('en-US', { minimumFractionDigits: +el.dataset.decimals, maximumFractionDigits: +el.dataset.decimals }).format(+el.dataset.count)
-        const wrongNumbers = [...document.querySelectorAll('[data-count]')].filter(inView).filter((el) => el.textContent !== fmt(el)).map((el) => `${el.textContent} (should be ${fmt(el)})`)
-        const hidden = [...document.querySelectorAll('[data-reveal], [data-reveal-group] > *, [data-line], [data-row], [data-panel], .acc-row, [data-verdict], [data-country]')]
-          .filter(inView)
-          .filter((el) => { const st = getComputedStyle(el); return st.visibility === 'hidden' || Number(st.opacity) < 0.99 })
-          .map((el) => el.textContent.trim().slice(0, 40))
-        const videos = [...document.querySelectorAll('video')].filter((v) => { const r = v.getBoundingClientRect(); return r.top < window.innerHeight * 0.8 && r.bottom > window.innerHeight * 0.2 })
-          .map((v) => ({ src: v.currentSrc.split('/').slice(-2).join('/'), readyState: v.readyState, paused: v.paused, t: +v.currentTime.toFixed(2) }))
-        return { y: Math.round(window.scrollY), wrongNumbers, hidden, videos }
-      })
-      const shot = `${out}fast-${vp.width}-stop${String(stop++).padStart(2, '0')}.png`
+    let shotNo = 0
+    const capture = async (mode) => {
+      const st = await page.evaluate(VISIBLE_CHECK)
+      const shot = `${out}scroll-${vp.width}-${mode}-${String(shotNo++).padStart(2, '0')}.png`
       await page.screenshot({ path: shot })
-      const dark = Number(execFileSync(process.env.PYTHON ?? 'python3', ['-c', `from PIL import Image; im = Image.open('${shot}').convert('L'); h = im.histogram(); print(sum(h[:14]) / sum(h))`]).toString())
-      const bad = state.wrongNumbers.length || state.hidden.length || dark > 0.97 || state.videos.some((v) => v.paused || v.readyState < 2)
-      if (bad) problems.push({ ...state, dark: +dark.toFixed(3) })
-      console.log(`  ${bad ? 'CHECK' : 'ok   '} y=${state.y} dark=${dark.toFixed(2)} numbers=${state.wrongNumbers.join(', ') || 'final'} hidden=${state.hidden.length}${state.videos.length ? ' video=' + JSON.stringify(state.videos) : ''}`)
-    }
-    report.checks.push({ label: `fast ${vp.width}`, skipVisible, portrait, problems, errors })
-
-    // Jump straight to each screen video (no scrolling in between) and give it 2 s to start.
-    for (const i of [0, 1]) {
-      const v = await page.evaluate(async (k) => {
-        const el = document.querySelectorAll('video')[k]
-        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 3, behavior: 'instant' })
-        await new Promise((r) => setTimeout(r, 2000))
-        return { src: el.currentSrc.split('/').slice(-2).join('/'), readyState: el.readyState, paused: el.paused, t: +el.currentTime.toFixed(2) }
-      }, i)
-      console.log(`  jump to video: ${v.src} readyState=${v.readyState} ${v.paused ? 'PAUSED' : 'playing'} t=${v.t}s`)
-      report.checks.push({ label: `video ${vp.width}`, ...v })
+      const dark = darkness(shot)
+      const metricsChanged = st.metrics.join('|') !== firstMetrics.join('|')
+      const bad = st.hidden.length || dark > 0.97 || metricsChanged || (mode === 'pause' && st.videos.some((v) => v.paused || v.readyState < 2))
+      if (bad) problems.push({ mode, ...st, dark })
+      console.log(`  ${bad ? 'CHECK' : 'ok   '} ${mode.padEnd(6)} y=${String(st.y).padStart(5)} dark=${dark.toFixed(2)} hidden=${st.hidden.length} metrics=${metricsChanged ? 'CHANGED' : 'same'} unloadedImgs=${st.unloaded}${st.videos.length ? ' video=' + st.videos.map((v) => `${v.src}:${v.paused ? 'paused' : 'playing'}/${v.readyState}`).join(',') : ''}${st.hidden.length ? ' ' + st.hidden.slice(0, 3).join('; ') : ''}`)
     }
 
-    if (vp.mobile) {
-      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
-      await page.waitForTimeout(300)
-      for (const name of ['CV', 'Projects', 'Contact']) {
-        await page.getByRole('button', { name: /open menu/i }).click()
-        await page.waitForTimeout(700)
-        await page.locator('#mobile-menu').getByRole('link', { name, exact: true }).click()
-        await page.waitForTimeout(1600)
-        const r = await page.evaluate((n) => {
-          const menuClosed = document.getElementById('mobile-menu').hasAttribute('inert') && document.documentElement.style.overflow === ''
-          const section = document.getElementById(n.toLowerCase())
-          const heading = section.querySelector('h2:not(.sr-only), [data-reveal-lines], p.label') ?? section
-          const top = Math.round(heading.getBoundingClientRect().top)
-          const header = Math.round(document.querySelector('header').getBoundingClientRect().bottom)
-          return { menuClosed, headingTop: top, headerBottom: header, hash: location.hash }
-        }, name)
-        console.log(`  menu > ${name}: closed=${r.menuClosed} heading top ${r.headingTop}px vs header bottom ${r.headerBottom}px ${r.headingTop >= r.headerBottom ? 'ok' : 'HIDDEN'} ${r.hash}`)
-        report.checks.push({ label: `menu ${name}`, ...r })
+    // slow: about 900 px/s, a capture every ~1.3 s while moving
+    let y = 0
+    let t = 0
+    while (y < max) {
+      y = Math.min(max, y + 18)
+      await page.evaluate((v) => window.scrollTo({ top: v, behavior: 'instant' }), y)
+      await page.waitForTimeout(20)
+      if ((t += 20) % 1300 < 20) await capture('slow')
+    }
+    // fast: jump up to the top in one go, then down in 85%-of-a-screen jumps at ~20 per second,
+    // capturing mid-run (no wait) and after a 0.6 s pause
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+    y = 0
+    while (y < max) {
+      for (let i = 0; i < 4 && y < max; i++) {
+        y = Math.min(max, y + Math.round(vp.height * 0.85))
+        await page.evaluate((v) => window.scrollTo({ top: v, behavior: 'instant' }), y)
+        await page.waitForTimeout(40)
       }
+      await capture('moving')
+      await page.waitForTimeout(600)
+      await capture('pause')
     }
+    report.checks.push({ label: `scroll ${vp.width}`, skipVisible, portrait, problems, errors })
+
+    // anchors: desktop nav, or the mobile menu
+    for (const name of ['CV', 'Projects', 'Contact']) {
+      if (vp.mobile) {
+        await page.getByRole('button', { name: /open menu/i }).click()
+        await page.waitForTimeout(600)
+        await page.locator('#mobile-menu').getByRole('link', { name, exact: true }).click()
+      } else {
+        await page.locator('header nav').getByRole('link', { name, exact: true }).click()
+      }
+      await page.waitForTimeout(1600)
+      const r = await page.evaluate((n) => {
+        const section = document.getElementById(n.toLowerCase())
+        const heading = section.querySelector('h2:not(.sr-only), [data-reveal-lines], p.label') ?? section
+        return {
+          menuClosed: document.getElementById('mobile-menu').hasAttribute('inert') && document.documentElement.style.overflow === '',
+          headingTop: Math.round(heading.getBoundingClientRect().top),
+          headerBottom: Math.round(document.querySelector('header').getBoundingClientRect().bottom),
+          hash: location.hash,
+        }
+      }, name)
+      const st = await page.evaluate(VISIBLE_CHECK)
+      const ok = r.menuClosed && r.headingTop >= r.headerBottom && !st.hidden.length
+      console.log(`  ${ok ? 'ok   ' : 'CHECK'} ${vp.mobile ? 'menu' : 'nav '} > ${name}: menu closed=${r.menuClosed}, heading at ${r.headingTop}px (header ends ${r.headerBottom}px), hidden=${st.hidden.length} ${r.hash}`)
+      await page.screenshot({ path: `${out}scroll-${vp.width}-anchor-${name.toLowerCase()}.png` })
+      report.checks.push({ label: `anchor ${vp.width} ${name}`, ...r, hidden: st.hidden })
+    }
+    // back to top
+    await page.getByRole('link', { name: 'Back to top', exact: true }).click()
+    await page.waitForTimeout(1800)
+    const top = await page.evaluate(() => ({ y: Math.round(window.scrollY), heroVisible: document.getElementById('home').getBoundingClientRect().top > -5 }))
+    console.log(`  ${top.y < 10 && top.heroVisible ? 'ok   ' : 'CHECK'} back to top: scrollY=${top.y}`)
+    await page.screenshot({ path: `${out}scroll-${vp.width}-backtotop.png` })
+
+    // technical details + enlarge
+    await page.locator('#project-1').getByRole('button', { name: /show technical details/i }).click()
+    await page.waitForTimeout(800)
+    const details = await page.evaluate(() => {
+      const panel = document.getElementById('project-1-details')
+      const svg = [...panel.querySelectorAll('svg[role="img"]')].find((x) => x.getBoundingClientRect().width > 0)
+      const texts = [...svg.querySelectorAll('text')].filter((x) => x.textContent.trim()).map((x) => x.getBoundingClientRect().height)
+      const pre = panel.querySelector('pre')
+      return {
+        open: panel.dataset.open,
+        diagram: svg.getAttribute('viewBox'),
+        smallestDiagramText: Math.round(Math.min(...texts) * 10) / 10,
+        codeFont: getComputedStyle(pre).fontSize,
+        codeSideways: pre.scrollWidth > pre.clientWidth + 1,
+      }
+    })
+    await page.locator('#project-1-details').scrollIntoViewIfNeeded()
+    await page.locator('#project-1-details svg[role="img"]').filter({ visible: true }).first().scrollIntoViewIfNeeded()
+    await page.waitForTimeout(400)
+    await page.screenshot({ path: `${out}scroll-${vp.width}-details-diagram.png` })
+    await page.locator('#project-1-details pre').scrollIntoViewIfNeeded()
+    await page.waitForTimeout(300)
+    await page.screenshot({ path: `${out}scroll-${vp.width}-details-code.png` })
+    const enlarge = page.locator('#project-1-details').getByRole('button', { name: /^enlarge/i }).first()
+    await enlarge.click()
+    await page.waitForTimeout(600)
+    const dialog = await page.evaluate(() => {
+      const d = [...document.querySelectorAll('dialog')].find((x) => x.open)
+      return d && { open: true, imgWidth: Math.round(d.querySelector('img').getBoundingClientRect().width), focused: document.activeElement?.getAttribute('aria-label') }
+    })
+    await page.screenshot({ path: `${out}scroll-${vp.width}-dialog.png` })
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
+    const after = await page.evaluate(() => ({ anyOpen: [...document.querySelectorAll('dialog')].some((x) => x.open), focus: document.activeElement?.getAttribute('aria-label')?.slice(0, 20), scrollUnlocked: document.documentElement.style.overflow === '' }))
+    console.log(`  details: ${JSON.stringify(details)}`)
+    console.log(`  enlarge: ${JSON.stringify(dialog)} -> after Esc ${JSON.stringify(after)}`)
+    report.checks.push({ label: `details ${vp.width}`, details, dialog, after })
     if (errors.length) console.log('  console errors:', errors)
     await ctx.close()
   }

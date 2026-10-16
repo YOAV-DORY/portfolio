@@ -15,7 +15,7 @@ export function Contact() {
   const root = useRef<HTMLElement>(null)
   useReveal(root)
 
-  // Panel: rises 48px and fades in, rows rise from their masks; on desktop it drifts ±3.5%.
+  // Panel and rows drift up a little (always visible); on desktop the panel drifts ±3.5% with scroll.
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -25,8 +25,8 @@ export function Contact() {
       if (!motion) return
       const panel = el.querySelector('[data-panel]')!
       const tl = gsap.timeline({ paused: true })
-      tl.from(panel, { y: 48, autoAlpha: 0, duration: 0.8, ease: 'power3.out' })
-      tl.from(el.querySelectorAll('[data-row]'), { yPercent: 100, duration: 0.6, ease: 'power3.out', stagger: 0.06 }, 0.15)
+      tl.from(panel, { y: 20, duration: 0.45, ease: 'power2.out' })
+      tl.from(el.querySelectorAll('[data-row]'), { y: 10, duration: 0.4, ease: 'power2.out', stagger: 0.05 }, 0.08)
       playOnEnter(panel, tl)
       if (desktop) {
         gsap.fromTo(
@@ -48,17 +48,17 @@ export function Contact() {
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      <Container className="grid grid-cols-1 gap-12 pb-16 pt-20 md:pb-20 md:pt-28 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20">
+      <Container className="grid grid-cols-1 gap-10 pb-12 pt-14 md:pb-16 md:pt-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-16">
         <div>
           <p data-reveal="up" className="label inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-gray-200">
             <span className="ping relative size-2 rounded-full bg-[#3ddc84]" />
             {SITE.status}
           </p>
-          <Lines id="contact-title" lines={['Get in', <Accent key="a">touch</Accent>]} className="mt-8 text-[clamp(3.75rem,13vw,10rem)]" />
-          <p data-reveal="up" className="mt-8 max-w-md text-lg leading-relaxed text-gray-300">
+          <Lines id="contact-title" lines={['Get in', <Accent key="a">touch</Accent>]} className="mt-6 text-[clamp(2.75rem,9vw,6.5rem)]" />
+          <p data-reveal="up" className="mt-6 max-w-md text-lg leading-relaxed text-gray-300">
             Looking for a student developer or product role. If you are hiring, or want to talk about one of the projects, email is the fastest way to reach me.
           </p>
-          <div data-reveal-group className="mt-10 flex flex-wrap gap-3">
+          <div data-reveal-group className="mt-8 flex flex-wrap gap-3">
             <Pill variant="primary" href={`mailto:${SITE.email}`}>
               Email me
             </Pill>
@@ -72,8 +72,8 @@ export function Contact() {
           <div data-panel className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm md:p-4">
             <ul>
               {ROWS.map((r, i) => (
-                <li key={r.label} className={`overflow-hidden ${i ? 'border-t border-white/10' : ''}`}>
-                  <div data-row className="flex items-center justify-between gap-4 px-4 py-5 md:px-6 md:py-7">
+                <li key={r.label} className={i ? 'border-t border-white/10' : ''}>
+                  <div data-row className="flex items-center justify-between gap-4 px-4 py-4 md:px-6 md:py-5">
                     <div className="min-w-0">
                       <p className="label text-gray-500">{r.label}</p>
                       <a

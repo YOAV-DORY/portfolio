@@ -97,10 +97,9 @@
 }
 
 /* ---------------------------------------------------------------- reveal lines
-   Each line sits in an overflow-hidden wrapper; GSAP lifts the inner span from yPercent 110. */
+   One block per heading line; GSAP drifts it up a little. Never clipped, so never hidden. */
 .line-mask {
   display: block;
-  overflow: hidden;
   padding-bottom: 0.08em; /* room for descenders and italic overhang */
   margin-bottom: -0.08em;
 }
@@ -177,6 +176,23 @@
 }
 .acc-row[data-open='true'] .acc-highlights {
   display: none;
+}
+/* Optional "technical details" in each project: same grid-rows technique. Closed panels are inert to
+   assistive tech via the hidden attribute pattern below (visibility), and take no space. */
+.expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 450ms var(--ease-out), visibility 0s 450ms;
+}
+.expand > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.expand[data-open='true'] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 450ms var(--ease-out), visibility 0s;
 }
 .acc-arrow {
   transition: transform 500ms var(--ease-out);

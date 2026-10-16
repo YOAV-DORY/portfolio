@@ -1,5 +1,6 @@
 // Code-snippet card (image kind 2): a verbatim excerpt from the project's repo, lightly highlighted.
-// Skipped lines are shown as `...` or `# ...`, never rewritten.
+// Skipped lines are shown as `...` or `# ...`, never rewritten. On phones long lines wrap with a
+// hanging indent instead of scrolling sideways.
 
 const KEYWORDS = new Set(['def', 'return', 'if', 'else', 'or', 'and', 'raise', 'import', 'from', 'class', 'for', 'in', 'not'])
 
@@ -31,10 +32,10 @@ export function CodeCard({ file, lang, code }: { file: string; lang: string; cod
         <span className="truncate font-mono text-[11px] text-gray-400">{file}</span>
         <span className="label !text-[10px] text-gray-600">{lang}</span>
       </div>
-      <pre className="overflow-x-auto p-5 font-mono text-[11.5px] leading-[1.7] text-gray-300 lg:text-[12px]">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words p-4 font-mono text-[12px] leading-[1.6] text-gray-300 md:whitespace-pre md:p-5">
         <code>
           {code.split('\n').map((line, i) => (
-            <span key={i} className="block min-h-[1.7em]">
+            <span key={i} className="block min-h-[1.6em] pl-[2ch] -indent-[2ch] md:pl-0 md:indent-0">
               {highlight(line, lang).map((p, j) => (
                 <span key={j} className={p.c}>
                   {p.t}

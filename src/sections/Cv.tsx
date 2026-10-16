@@ -23,8 +23,8 @@ function About() {
   const root = useRef<HTMLDivElement>(null)
   useReveal(root)
 
-  // Desktop: scrubbed word-by-word colour reveal. Each word lights up as it enters the bottom of the
-  // screen, so whatever is on screen is readable. Mobile: one fade-up. Reduced motion: nothing.
+  // Desktop: scrubbed word-by-word colour accent, from a readable grey to white as each word enters
+  // the bottom of the screen (text is never transparent). Mobile: a short drift. Reduced motion: none.
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -34,32 +34,32 @@ function About() {
       if (!motion) return
       const card = el.querySelector('[data-about-card]')!
       if (!desktop) {
-        playOnEnter(card, gsap.from(card, { y: 40, autoAlpha: 0, duration: 0.8, ease: 'power3.out', paused: true }))
+        playOnEnter(card, gsap.from(card, { y: 16, duration: 0.45, ease: 'power2.out', paused: true }))
         return
       }
       gsap.fromTo(
         el.querySelectorAll('[data-word]'),
-        { color: '#52525b', opacity: 0.2 },
-        { color: '#ffffff', opacity: 1, ease: 'none', stagger: 0.05, scrollTrigger: { trigger: card, start: 'top 92%', end: 'bottom 95%', scrub: true } },
+        { color: '#8a8a93' },
+        { color: '#ffffff', ease: 'none', stagger: 0.05, scrollTrigger: { trigger: card, start: 'top 92%', end: 'bottom 95%', scrub: true } },
       )
     })
     return () => mm.revert()
   }, [])
 
   return (
-    <div ref={root} className="pb-16 pt-20 md:pb-24 md:pt-28">
+    <div ref={root} className="pb-12 pt-14 md:pb-16 md:pt-20">
       <Container className="grid grid-cols-1 gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
         <div>
           <Label>
             <span className="text-tag">01</span> &nbsp;/ About
           </Label>
-          <p data-reveal="up" aria-hidden="true" className="heading text-gradient mt-6 text-[clamp(4.5rem,15vw,11rem)] lg:text-[clamp(6rem,10vw,10.5rem)]">
+          <p data-reveal="up" aria-hidden="true" className="heading text-gradient mt-4 text-[clamp(3rem,11vw,6.5rem)]">
             About
           </p>
-          <p data-reveal="up" data-reveal-delay="0.1" className="mt-6 max-w-sm text-gray-400">
+          <p data-reveal="up" data-reveal-delay="0.1" className="mt-4 max-w-sm text-gray-400">
             The short version of my CV. The full one is a click away.
           </p>
-          <div data-reveal="up" data-reveal-delay="0.2" className="mt-8">
+          <div data-reveal="up" data-reveal-delay="0.2" className="mt-6">
             <Pill href={SITE.cv} download="Yoav-Dory-CV.pdf">
               Download CV (PDF)
             </Pill>
@@ -68,7 +68,7 @@ function About() {
 
         <div data-about-card className="rounded-3xl border border-white/10 bg-panel p-7 md:p-12">
           <h3 className="sr-only">About me</h3>
-          <p className="text-[clamp(1.2rem,1.9vw,1.6rem)] font-light leading-[1.55] tracking-tight text-gray-200">
+          <p className="text-[clamp(1.08rem,1.6vw,1.4rem)] font-light leading-[1.55] tracking-tight text-gray-200">
             {ABOUT.map((seg, i) => (
               <Fragment key={i}>{seg.bold ? <strong className="font-semibold">{words(seg.text)}</strong> : words(seg.text)}</Fragment>
             ))}
@@ -92,27 +92,27 @@ function Path() {
   const [open, setOpen] = useState<number | null>(0)
   useReveal(root)
 
-  // Rows rise from yPercent 12 while their divider stretches (--rule-scale 0 to 1).
+  // Rows drift up a little while their divider stretches (--rule-scale 0 to 1).
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
     const mm = gsap.matchMedia(el)
     mm.add(MEDIA.motion, () => {
       const rows = el.querySelectorAll('.acc-row')
-      const tween = gsap.from(rows, { yPercent: 12, autoAlpha: 0, '--rule-scale': 0, duration: 0.6, ease: 'power3.out', stagger: 0.06, paused: true })
+      const tween = gsap.from(rows, { y: 12, '--rule-scale': 0, duration: 0.45, ease: 'power2.out', stagger: 0.04, paused: true })
       playOnEnter(el.querySelector('[data-rows]')!, tween)
     })
     return () => mm.revert()
   }, [])
 
   return (
-    <div ref={root} className="pb-16 md:pb-24">
-      <Container className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
+    <div ref={root} className="pb-12 md:pb-16">
+      <Container className="mb-8 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between">
         <div>
-          <Label className="mb-6">
+          <Label className="mb-4">
             <span className="text-tag">02</span> &nbsp;/ Experience
           </Label>
-          <Lines lines={['The path', <Accent key="a">so far</Accent>]} className="text-[clamp(3.25rem,10vw,8rem)]" />
+          <Lines lines={['The path', <Accent key="a">so far</Accent>]} className="text-[clamp(2.5rem,8vw,5.5rem)]" />
         </div>
         <p data-reveal="up" className="max-w-sm text-gray-400">
           Service, study and volunteering. Open a row for the details.
@@ -139,11 +139,11 @@ function Row({ track, index, open, onToggle }: { track: Track; index: number; op
           onClick={onToggle}
           className="acc-head block w-full text-left focus-visible:!outline-offset-[-2px]"
         >
-          <Container className="flex items-center gap-5 py-7 md:gap-10 md:py-10">
+          <Container className="flex items-center gap-5 py-5 md:gap-10 md:py-7">
             <span className="acc-muted label w-8 shrink-0 text-gray-500">{String(index + 1).padStart(2, '0')}</span>
             <span className="flex min-w-0 flex-1 flex-col gap-2">
               <span className="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between md:gap-8">
-                <span className="heading text-[clamp(1.9rem,5.5vw,4.25rem)]">{track.title}</span>
+                <span className="heading text-[clamp(1.6rem,4.5vw,3.25rem)]">{track.title}</span>
                 <span className="acc-muted text-sm text-gray-400 md:text-right">{track.summary}</span>
               </span>
               {/* What a skimming reader sees without opening the row (hidden once it is open). */}
@@ -161,7 +161,7 @@ function Row({ track, index, open, onToggle }: { track: Track; index: number; op
         </button>
       </h3>
       <div id={id} role="region" aria-label={track.title} className="acc-panel">
-        <Container className="grid grid-cols-1 gap-10 pb-12 md:grid-cols-2 md:pb-16 md:pl-[calc(4rem+2.5rem)]">
+        <Container className="grid grid-cols-1 gap-8 pb-8 md:grid-cols-2 md:pb-10 md:pl-[calc(4rem+2.5rem)]">
           {track.entries.map((e) => (
             <div key={e.role}>
               <p className="text-lg font-semibold tracking-tight text-white">{e.role}</p>
@@ -191,12 +191,12 @@ function Skills() {
   const root = useRef<HTMLDivElement>(null)
   useReveal(root)
   return (
-    <div ref={root} className="pb-20 md:pb-28">
-      <Container className="mb-10 md:mb-12">
-        <Label className="mb-6">
+    <div ref={root} className="pb-14 md:pb-20">
+      <Container className="mb-8 md:mb-10">
+        <Label className="mb-4">
           <span className="text-tag">03</span> &nbsp;/ Skills
         </Label>
-        <Lines lines={['Tools I', <Accent key="a">reach for</Accent>]} className="text-[clamp(3.25rem,10vw,8rem)]" />
+        <Lines lines={['Tools I', <Accent key="a">reach for</Accent>]} className="text-[clamp(2.5rem,8vw,5.5rem)]" />
       </Container>
       <div className="flex flex-col gap-4 md:gap-5" data-reveal="fade">
         {SKILLS.map((row) => (

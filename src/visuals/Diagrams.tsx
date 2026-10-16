@@ -123,3 +123,93 @@ function EastWire({ m }: { m: string }) {
     </>
   )
 }
+
+/* ------------------------------------------------------------------ phone versions
+   A 640-wide diagram squeezed into a phone is unreadable, so phones get the same facts as a vertical
+   flow: one box per step, 13px text at 1:1 scale, an arrow (with its label) between steps. */
+
+type Step = { title: string; lines: string[]; strong?: boolean; edge?: string }
+
+const VERTICAL: Record<'permissionguard' | 'glassbox' | 'eastwire', Step[]> = {
+  permissionguard: [
+    { title: 'Front ends', lines: ['demo.py · demo_injection.py', 'mcp_server.py'], edge: 'request' },
+    { title: 'guard.handle()', strong: true, lines: ['1 policy.evaluate: allow | deny | ask', '2 ask: a human approves in the CLI', '  or through MCP elicitation', 'fails closed on any error'], edge: 'decision logged first' },
+    { title: 'audit.py', lines: ['hash-chained JSONL', 'verify / --sandbox'], edge: 'then, if allowed' },
+    { title: 'tools.py', lines: ['read_file · write_file', 'delete_file · run_command'] },
+    { title: 'policy.yaml (read by the guard)', lines: ['sandbox_root', 'allowlist-first commands'] },
+  ],
+  glassbox: [
+    { title: 'Home Credit data', lines: ['307,511 applications', 'public, Kaggle'] },
+    { title: 'features.py', lines: ['15 fields + 5 ratios', 'inside the pipeline'] },
+    { title: 'LightGBM', strong: true, lines: ['monotone constraints', 'test ROC-AUC 0.763'], edge: 'p(default)' },
+    { title: 'explain.py · SHAP', lines: ['reason codes per request'] },
+    { title: 'decision.py', strong: true, lines: ['approve if p < m / (m + lgd)', 'cut-off 14.3%'] },
+    { title: 'fairness.py', lines: ['gaps by gender and age', 'descriptive audit'] },
+    { title: 'FastAPI · api/', lines: ['POST /predict', 'POST /portfolio/simulate'], edge: 'JSON' },
+    { title: 'React · web/', lines: ['decision desk', 'portfolio simulator'] },
+  ],
+  eastwire: [
+    { title: 'Sources', lines: ['GDELT GKG files', 'Global Voices · Bluesky newsrooms'] },
+    { title: 'ingest (Java 21)', strong: true, lines: ['GitHub Actions, hourly', 'domain allowlist', 'city + sector rules (config/*.yaml)'], edge: 'write' },
+    { title: 'PostgreSQL', lines: ['Neon free tier', 'Flyway migrations'], edge: 'read-only' },
+    { title: 'api (Spring Boot)', strong: true, lines: ['Render free tier', 'DisplayPolicy on every read'], edge: 'JSON' },
+    { title: 'React + TypeScript', lines: ['Cloudflare Pages', 'search, sectors, map'] },
+    { title: 'Reader', lines: ['English, any device', 'every source credited'] },
+  ],
+}
+
+function VerticalDiagram({ name, title }: { name: keyof typeof VERTICAL; title: string }) {
+  const W = 340
+  const GAP = 34
+  const id = `arrow-v-${name}`
+  const placed: Array<Step & { y: number; h: number }> = []
+  for (const s of VERTICAL[name]) {
+    const prev = placed[placed.length - 1]
+    placed.push({ ...s, y: prev ? prev.y + prev.h + GAP : 12, h: 34 + s.lines.length * 18 })
+  }
+  const last = placed[placed.length - 1]
+  const H = last.y + last.h + 12
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title} className="h-auto w-full">
+      {defs(id)}
+      <rect width={W} height={H} fill="#08080a" />
+      {placed.map((s, i) => (
+        <g key={s.title}>
+          <rect x={12} y={s.y} width={W - 24} height={s.h} rx="10" fill={s.strong ? 'color-mix(in oklab, var(--tint) 14%, #0b0b0c)' : '#0e0e10'} stroke={s.strong ? 'var(--tint)' : 'rgb(255 255 255 / 0.16)'} />
+          <text x={26} y={s.y + 24} fill="#fff" fontSize="14" fontWeight="700" fontFamily="var(--font-sans)">
+            {s.title}
+          </text>
+          {s.lines.map((l, k) => (
+            <text key={k} x={26} y={s.y + 44 + k * 18} fill="#a1a1aa" fontSize="12.5" fontFamily="var(--font-mono)" xmlSpace="preserve">
+              {l}
+            </text>
+          ))}
+          {i < placed.length - 1 && (
+            <g>
+              <path d={`M${W / 2} ${s.y + s.h + 2} V${s.y + s.h + GAP - 4}`} stroke="var(--tint)" strokeOpacity="0.75" strokeWidth="1.5" markerEnd={`url(#${id})`} />
+              {s.edge && (
+                <text x={W / 2 + 10} y={s.y + s.h + GAP / 2 + 4} fill="var(--tint)" fontSize="12" fontFamily="var(--font-mono)">
+                  {s.edge}
+                </text>
+              )}
+            </g>
+          )}
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+/** The horizontal diagram from 768px up, the vertical one below (only one is ever displayed). */
+export function ResponsiveDiagram({ name, title }: { name: keyof typeof VERTICAL; title: string }) {
+  return (
+    <>
+      <div className="hidden w-full md:block">
+        <Diagram name={name} title={title} />
+      </div>
+      <div className="w-full md:hidden">
+        <VerticalDiagram name={name} title={title} />
+      </div>
+    </>
+  )
+}

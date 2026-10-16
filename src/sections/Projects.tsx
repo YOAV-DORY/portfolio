@@ -7,22 +7,23 @@ import { SITE } from '../content/site'
 import { gsap, MEDIA, type MediaConditions } from '../motion/gsap'
 import { numberFormat, playOnEnter, useReveal } from '../motion/useReveal'
 import { CodeCard } from '../visuals/CodeCard'
-import { Diagram } from '../visuals/Diagrams'
+import { ResponsiveDiagram } from '../visuals/Diagrams'
+import { EnlargeButton, Zoomable } from '../components/Zoomable'
 
 export function Projects() {
   const intro = useRef<HTMLDivElement>(null)
   useReveal(intro)
   return (
     <section id="projects" aria-labelledby="projects-title" className="relative">
-      <div ref={intro} className="border-t border-white/10 pb-6 pt-20 md:pb-8 md:pt-28">
-        <Container className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+      <div ref={intro} className="border-t border-white/10 pb-2 pt-14 md:pt-20">
+        <Container className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <Label className="mb-6">
+            <Label className="mb-4">
               <span className="text-tag">04</span> &nbsp;/ Projects
             </Label>
-            <Lines id="projects-title" lines={["Things I've", <Accent key="a">built</Accent>]} className="text-[clamp(3.25rem,11vw,9rem)]" />
+            <Lines id="projects-title" lines={["Things I've", <Accent key="a">built</Accent>]} className="text-[clamp(2.5rem,8vw,5.5rem)]" />
           </div>
-          <div data-reveal="up" className="max-w-sm space-y-6">
+          <div data-reveal="up" className="max-w-sm space-y-4">
             <p className="text-gray-400">Three projects, each built end to end: an AI security layer, an explainable credit model and a news map. All code is public.</p>
             <Pill href={SITE.github}>All code on GitHub</Pill>
           </div>
@@ -37,9 +38,11 @@ export function Projects() {
 
 function ProjectSection({ project: p }: { project: Project }) {
   const root = useRef<HTMLElement>(null)
+  const [open, setOpen] = useState(false)
   useReveal(root)
   useBeat(root, p.beat)
   const titleId = `${p.id}-title`
+  const detailsId = `${p.id}-details`
 
   return (
     <section
@@ -47,7 +50,7 @@ function ProjectSection({ project: p }: { project: Project }) {
       ref={root}
       aria-labelledby={titleId}
       style={{ '--tint': p.tint, '--word': p.tint } as CSSProperties}
-      className="relative isolate overflow-hidden py-16 md:py-24"
+      className="relative isolate overflow-hidden py-12 md:py-16"
     >
       {/* Generated abstract backdrop (image kind 3): CSS gradient mesh, grid and grain in the tint. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
@@ -58,126 +61,141 @@ function ProjectSection({ project: p }: { project: Project }) {
       </div>
 
       <Container>
-        {/* header: title on its own full-width line, then pitch and links */}
-        <p data-reveal="up" className="label mb-5 flex items-center gap-3 text-gray-400">
+        {/* header: number, title, one-line pitch, links */}
+        <p data-reveal="up" className="label mb-4 flex items-center gap-3 text-gray-400">
           <span className="text-tint">{p.number}</span>
           <span className="h-px w-10 bg-white/25" />
           Project
         </p>
-        <Lines
-          as="h3"
-          id={titleId}
-          lines={[
-            <span key="t">
-              {p.title[0]}
-              <Accent>{p.title[1]}</Accent>
-            </span>,
-          ]}
-          className="whitespace-nowrap"
-          style={{ fontSize: titleSize(p.title.join('')) }}
-        />
-        <div className="mt-8 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-12 md:items-end">
-          <p data-reveal="up" className="text-lg leading-relaxed text-gray-200 md:col-span-7 md:text-xl">
-            {p.pitch}
-          </p>
-          <div data-reveal-group className="flex flex-wrap gap-3 md:col-span-5 md:justify-end">
-            {p.links.map((l) => (
-              <Pill key={l.href} href={l.href} variant={l.primary ? 'primary' : 'secondary'}>
-                {l.label}
-              </Pill>
-            ))}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-end">
+          <Lines
+            as="h3"
+            id={titleId}
+            lines={[
+              <span key="t">
+                {p.title[0]}
+                <Accent>{p.title[1]}</Accent>
+              </span>,
+            ]}
+            className="whitespace-nowrap text-[min(calc(140vw/var(--len)),6rem)] lg:col-span-7 lg:text-[min(calc(88vw/var(--len)),calc(76rem/var(--len)),7rem)]"
+            style={{ '--len': p.title.join('').length } as CSSProperties}
+          />
+          <div className="space-y-4 lg:col-span-5 lg:pb-2">
+            <p data-reveal="up" className="text-lg leading-snug text-gray-200">
+              {p.pitch}
+            </p>
+            <div data-reveal-group className="flex flex-wrap gap-3">
+              {p.links.map((l) => (
+                <Pill key={l.href} href={l.href} variant={l.primary ? 'primary' : 'secondary'}>
+                  {l.label}
+                </Pill>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* hero visual */}
-        <figure className="mt-10 md:mt-14">
-          <div data-beat-stage className="relative [perspective:1400px]">
-            {p.beat === 'tilt' && <CountryTicker />}
-            <div data-beat-frame className="relative">
-              <HeroMedia media={p.hero} />
-              {p.beat === 'wipe' && (
-                <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                  <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent mix-blend-overlay" />
-                </span>
-              )}
+        {/* the story: product on the left, what it does and the real numbers on the right */}
+        <div className="mt-8 grid grid-cols-1 gap-8 md:mt-10 lg:grid-cols-12 lg:gap-10">
+          <figure className="lg:col-span-7">
+            <div data-beat-stage className="relative [perspective:1400px]">
+              {p.beat === 'tilt' && <CountryTicker />}
+              <div data-beat-frame className="relative">
+                <HeroMedia media={p.hero} />
+                {p.beat === 'wipe' && (
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+                    <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent mix-blend-overlay" />
+                  </span>
+                )}
+              </div>
+              {p.beat === 'stamp' && <Verdicts />}
             </div>
-            {p.beat === 'stamp' && <Verdicts />}
+            <figcaption className="label mt-3 flex items-center gap-2 text-gray-500">
+              <span className="size-1.5 rounded-full bg-tint" />
+              {p.hero.kind === 'sequence' ? p.hero.caption : 'Screen recording'}
+            </figcaption>
+          </figure>
+
+          <div className="flex flex-col gap-7 lg:col-span-5">
+            <div>
+              <Label className="mb-3">What it does</Label>
+              <ol data-reveal-group className="space-y-3">
+                {p.does.map((d, i) => (
+                  <li key={d} className="flex gap-4 border-t border-white/10 pt-3">
+                    <span className="label pt-0.5 text-tint">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-[15px] leading-snug text-gray-200">{d}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {/* Real values from the repo or README, shown as they are (no count-up). */}
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10">
+              {p.numbers.map((n) => (
+                <div key={n.label} className="flex flex-col-reverse justify-end gap-1 bg-[#070707] px-4 py-4">
+                  <dt className="text-[13px] leading-snug text-gray-400">{n.label}</dt>
+                  <dd className="heading text-gradient whitespace-nowrap text-[clamp(1.6rem,6vw,2.4rem)] tabular-nums">
+                    {numberFormat(n.decimals ?? 0)(n.value)}
+                    {n.suffix}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <figcaption className="label mt-4 flex items-center gap-2 text-gray-500">
-            <span className="size-1.5 rounded-full bg-tint" />
-            {p.hero.kind === 'sequence' ? p.hero.caption : 'Screen recording'}
-          </figcaption>
-        </figure>
+        </div>
 
         {p.note && (
-          <p data-reveal="up" className="mt-8 max-w-3xl rounded-2xl border border-white/10 bg-panel px-5 py-4 text-sm leading-relaxed text-gray-300">
+          <p data-reveal="up" className="mt-6 max-w-3xl rounded-2xl border border-white/10 bg-panel px-5 py-3.5 text-sm leading-relaxed text-gray-300">
             <span className="label mr-3 !text-[10px] text-tag">Note</span>
             {p.note}
           </p>
         )}
 
-        {/* what it does + how it is built */}
-        <div className="mt-14 grid grid-cols-1 gap-12 md:mt-20 md:grid-cols-12">
-          <div className="md:col-span-7">
-            <Label className="mb-6">What it does</Label>
-            <ol data-reveal-group className="space-y-5">
-              {p.does.map((d, i) => (
-                <li key={d} className="flex gap-5 border-t border-white/10 pt-5">
-                  <span className="label pt-1 text-tint">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="text-lg leading-relaxed text-gray-200">{d}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="md:col-span-5">
-            <Label className="mb-6">How it is built</Label>
-            <ul data-reveal-group data-reveal-stagger="0.05" className="flex flex-wrap gap-2.5">
-              {p.stack.map((s) => (
-                <li key={s} className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 font-mono text-[12.5px] text-gray-200">
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* numbers */}
-        <dl className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:mt-20 lg:grid-cols-4">
-          {p.numbers.map((n) => (
-            <div key={n.label} className="flex flex-col-reverse justify-end gap-2 bg-[#070707] px-4 py-7 md:px-7 md:py-10">
-              <dt className="text-sm leading-snug text-gray-400">{n.label}</dt>
-              <dd className="heading text-gradient whitespace-nowrap text-[clamp(1.5rem,7.5vw,4rem)] tabular-nums lg:text-[clamp(2.5rem,3.6vw,3.75rem)]">
-                <span data-count={n.value} data-decimals={n.decimals ?? 0}>
-                  {numberFormat(n.decimals ?? 0)(n.value)}
-                </span>
-                {n.suffix}
-              </dd>
+        {/* optional: how it is built, architecture, code and more screens */}
+        <div className="mt-6 border-t border-white/10 pt-5">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={detailsId}
+            onClick={() => setOpen((o) => !o)}
+            className="group flex min-h-11 w-full items-center justify-between gap-4 text-left"
+          >
+            <span>
+              <span className="label text-gray-300 group-hover:text-white">{open ? 'Hide' : 'Show'} technical details</span>
+              <span className="mt-1 block text-sm text-gray-500">Stack, architecture diagram, code from the repo and more screens</span>
+            </span>
+            <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-full border border-white/20 text-lg transition-transform duration-300 ${open ? 'rotate-45' : ''}`}>
+              +
+            </span>
+          </button>
+          <div id={detailsId} role="region" aria-label={`${p.title.join('')}: technical details`} className="expand" data-open={open}>
+            <div>
+              <div className="pb-2 pt-6">
+                <Label className="mb-3">How it is built</Label>
+                <ul className="flex flex-wrap gap-2">
+                  {p.stack.map((s) => (
+                    <li key={s} className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 font-mono text-[12px] text-gray-200">
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-8 pb-4 pt-6 md:grid-cols-2">
+                {p.gallery.map((g, i) => (
+                  <figure key={i} className={`flex min-w-0 flex-col ${p.gallery.length % 2 && i === p.gallery.length - 1 ? 'md:col-span-2' : ''}`}>
+                    <GalleryVisual item={g} />
+                    <figcaption className="label mt-3 text-gray-500">{g.caption}</figcaption>
+                  </figure>
+                ))}
+              </div>
             </div>
-          ))}
-        </dl>
-
-        {/* gallery */}
-        <div className="mt-14 grid grid-cols-1 gap-x-8 gap-y-12 md:mt-20 md:grid-cols-2">
-          {p.gallery.map((g, i) => (
-            <figure
-              key={i}
-              data-reveal={i % 2 ? 'right' : 'left'}
-              className={`flex min-w-0 flex-col ${p.gallery.length % 2 && i === p.gallery.length - 1 ? 'md:col-span-2' : ''}`}
-            >
-              <GalleryVisual item={g} />
-              <figcaption className="label mt-4 text-gray-500">{g.caption}</figcaption>
-            </figure>
-          ))}
+          </div>
         </div>
       </Container>
     </section>
   )
 }
 
-/** Title size from its length, so a short name is big and PERMISSIONguard still fits a 320px phone. */
-function titleSize(title: string) {
-  return `min(${(138 / title.length).toFixed(2)}vw, ${Math.min(11, 124 / title.length).toFixed(2)}rem)`
-}
+// Title size comes from its length (--len): a short name is big, PERMISSIONguard still fits a 320px
+// phone and, from 1024px, its 7-of-12 column (capped by the max-w-7xl container, not the viewport).
 
 /* ------------------------------------------------------------------ media */
 
@@ -191,7 +209,13 @@ function HeroMedia({ media }: { media: Media }) {
     </div>
   )
   if (media.kind === 'video') {
-    const slot = frame(<VideoSlot src={media.src} poster={media.poster} alt={media.alt} />)
+    const slot = frame(
+      <>
+        <VideoSlot src={media.src} poster={media.poster} alt={media.alt} />
+        {/* A terminal at phone width is too small to read: open its last frame (the poster) full size. */}
+        {media.frame === 'terminal' && <EnlargeButton src={media.poster} alt={media.alt} width={1280} height={912} className="md:hidden" />}
+      </>,
+    )
     return media.frame === 'terminal' ? <TerminalFrame title="~/PermissionGuard">{slot}</TerminalFrame> : <BrowserFrame url={media.url}>{slot}</BrowserFrame>
   }
   return <BrowserFrame url={media.url}>{frame(<Sequence frames={media.frames} />)}</BrowserFrame>
@@ -244,14 +268,15 @@ function Sequence({ frames }: { frames: Array<{ src: string; alt: string }> }) {
 function GalleryVisual({ item }: { item: GalleryItem }) {
   switch (item.kind) {
     case 'desktop': {
+      // Wide screenshots are unreadable at phone width, so they open full size on tap.
       const [w, h] = item.size ?? [1440, 900]
-      const img = <img src={item.src} alt={item.alt} width={w} height={h} loading="lazy" decoding="async" className="block h-auto w-full" />
+      const img = <Zoomable src={item.src} alt={item.alt} width={w} height={h} />
       return item.url ? <BrowserFrame url={item.url}>{img}</BrowserFrame> : <Plain>{img}</Plain>
     }
     case 'phone':
       return (
-        <div className="flex flex-1 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-10">
-          <PhoneFrame className="max-w-[250px]">
+        <div className="flex flex-1 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] px-6 py-6">
+          <PhoneFrame className="max-w-[220px]">
             <img src={item.src} alt={item.alt} width={780} height={1688} loading="lazy" decoding="async" className="block h-auto w-full" />
           </PhoneFrame>
         </div>
@@ -259,7 +284,7 @@ function GalleryVisual({ item }: { item: GalleryItem }) {
     case 'diagram':
       return (
         <div className="flex flex-1 items-center overflow-hidden rounded-2xl border border-white/10 bg-[#08080a]">
-          <Diagram name={item.diagram} title={item.caption} />
+          <ResponsiveDiagram name={item.diagram} title={item.caption} />
         </div>
       )
     case 'code':
@@ -268,10 +293,10 @@ function GalleryVisual({ item }: { item: GalleryItem }) {
 }
 
 /* ------------------------------------------------------------------ beats
-   Each project has its own motion beat on the hero visual:
-   stamp: allow / ask / deny verdicts stamp onto the terminal (PermissionGuard)
-   wipe:  the screenshot is uncovered like a pane of glass, with a light sheen (glassbox)
-   tilt:  the browser tips up from a 3D angle while the four countries slide in (EastWire) */
+   Each project has its own motion accent on the hero visual. None of them hides anything:
+   stamp: the allow / ask / deny verdicts punch in a little (PermissionGuard)
+   wipe:  a band of light sweeps across the screenshot, like a pane of glass (glassbox)
+   tilt:  the browser tips up from a slight 3D angle, the countries drift in (EastWire) */
 
 function Verdicts() {
   const items = [
@@ -319,24 +344,20 @@ function useBeat(scope: RefObject<HTMLElement | null>, beat: Project['beat']) {
       const stage = el.querySelector('[data-beat-stage]')!
       const frame = el.querySelector('[data-beat-frame]')!
       if (beat === 'stamp') {
-        const tl = gsap.timeline({ paused: true })
-        tl.from(frame, { y: 60, autoAlpha: 0, duration: 0.8, ease: 'power3.out' })
-        tl.from(el.querySelectorAll('[data-verdict]'), { scale: 1.9, rotate: -10, autoAlpha: 0, duration: 0.4, ease: 'back.out(2.2)', stagger: 0.18 }, 0.35)
-        playOnEnter(stage, tl)
+        const tween = gsap.from(el.querySelectorAll('[data-verdict]'), { scale: 1.25, rotate: -6, duration: 0.35, ease: 'back.out(2.4)', stagger: 0.1, paused: true })
+        playOnEnter(stage, tween)
       }
       if (beat === 'wipe') {
-        // Finishes while the frame is still entering, so nobody reads a half-covered screenshot.
-        const scrub = { trigger: stage, start: 'top 95%', end: 'top 60%', scrub: 0.4 }
-        gsap.fromTo(frame, { clipPath: 'inset(0% 100% 0% 0% round 16px)' }, { clipPath: 'inset(0% 0% 0% 0% round 16px)', ease: 'none', scrollTrigger: scrub })
+        const scrub = { trigger: stage, start: 'top 95%', end: 'bottom 40%', scrub: 0.4 }
         gsap.fromTo(el.querySelector('[data-sheen]'), { xPercent: -100 }, { xPercent: 320, ease: 'none', scrollTrigger: scrub })
       }
       if (beat === 'tilt') {
         gsap.fromTo(
           frame,
-          { rotateX: desktop ? 24 : 12, scale: 0.9, y: 40, transformOrigin: '50% 100%' },
-          { rotateX: 0, scale: 1, y: 0, ease: 'none', scrollTrigger: { trigger: stage, start: 'top 98%', end: 'top 55%', scrub: 0.4 } },
+          { rotateX: desktop ? 12 : 6, scale: 0.96, transformOrigin: '50% 100%' },
+          { rotateX: 0, scale: 1, ease: 'none', scrollTrigger: { trigger: stage, start: 'top 98%', end: 'top 60%', scrub: 0.4 } },
         )
-        playOnEnter(stage, gsap.from(el.querySelectorAll('[data-country]'), { x: 60, autoAlpha: 0, duration: 0.6, ease: 'power3.out', stagger: 0.07, paused: true }))
+        playOnEnter(stage, gsap.from(el.querySelectorAll('[data-country]'), { x: 14, duration: 0.4, ease: 'power2.out', stagger: 0.05, paused: true }))
       }
     })
     return () => mm.revert()

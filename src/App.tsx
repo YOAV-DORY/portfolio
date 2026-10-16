@@ -52,6 +52,20 @@ export default function App() {
     return () => document.removeEventListener('click', onClick)
   }, [])
 
+  // Images are lazy so the first paint stays light, but a fast scroller can outrun lazy loading. Once
+  // the page has loaded and the browser is idle, the rest are fetched in the background.
+  useEffect(() => {
+    const warm = () =>
+      document.querySelectorAll<HTMLImageElement>('img[loading="lazy"]').forEach((img) => {
+        img.loading = 'eager'
+      })
+    const idle = (fn: () => void) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 4000 }) : window.setTimeout(fn, 1500))
+    const onLoad = () => window.setTimeout(() => idle(warm), 1200)
+    if (document.readyState === 'complete') onLoad()
+    else window.addEventListener('load', onLoad, { once: true })
+    return () => window.removeEventListener('load', onLoad)
+  }, [])
+
   return (
     <>
       <Nav />

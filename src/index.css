@@ -326,16 +326,14 @@ html.intro .skip-intro {
   }
 }
 
-/* ---------------------------------------------------------------- about reveal (desktop + motion) */
-.about-scrub .about-base {
-  color: #8a8a93;
+/* ---------------------------------------------------------------- about reveal (desktop + motion)
+   Words are inline-blocks so each can be its own layer; they are promoted only while the card is on
+   screen (.about-live), so the opacity scrub never repaints text and costs no layers elsewhere. */
+.about-words [data-word] {
+  display: inline-block;
 }
-.about-scrub .about-window {
-  display: block;
-  will-change: transform;
-}
-.about-scrub .about-copy {
-  will-change: transform;
+.about-live [data-word] {
+  will-change: opacity;
 }
 
 /* ---------------------------------------------------------------- skip off-screen rendering

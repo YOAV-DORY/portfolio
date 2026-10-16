@@ -63,6 +63,9 @@ async function scrollThrough(page) {
 }
 
 async function layoutChecks(page, label, errors) {
+  // Measure from the top: further down, covered projects are scaled to 0.96 by the stack.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  await page.waitForTimeout(400)
   const result = await page.evaluate(() => {
     // measure the natural layout: sticky project stack off (as ScrollTrigger does while refreshing)
     document.documentElement.classList.add('no-stack')

@@ -75,12 +75,15 @@ Or without Git: `npm run build`, then `npx wrangler pages deploy dist --project-
   jumps (`playOnEnter`). Metrics show their real values from first paint (no count-ups).
 - Scroll-driven extras (transform/opacity only, motion-OK visitors only):
   - hero: portrait and name drift up and fade a little as you scroll away;
-  - About (desktop): grey-to-white text, revealed by two counter-moving transforms over a white copy;
+  - About (desktop): the words light up one by one in reading order, scrubbed to scroll (opacity
+    0.35 to 1 only; each word is its own compositor layer while the card is on screen);
   - experience: a timeline line draws itself down the left of the rows;
   - skills: the marquees skew (up to 6deg) and speed up with scroll velocity, then settle;
   - project titles and the Contact heading roll up into their line masks with scroll;
-  - projects: a sticky stack, each project staying put while the next slides over it (the covered
-    one scales to 0.96 under a shade); `useStack` in `src/sections/Projects.tsx`;
+  - projects: tall, media-first sections (title, full-width product media, pitch and links, what it
+    does / how it is built, numbers, technical details) in a sticky stack, each project staying put
+    while the next slides over it (the covered one scales to 0.96 under a shade); `useStack` in
+    `src/sections/Projects.tsx`;
   - glassbox (desktop): its gallery is a pinned strip scrubbed sideways (`useStrip`).
 - `src/sections/Hero.tsx`: the intro. PORTFOLIO assembles, morphs a letter every 150 ms into YOAV
   DORY, moves to place, the halves split, the buttons rise; about 3.3 s, "Skip intro" or Esc ends

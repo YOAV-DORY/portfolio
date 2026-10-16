@@ -56,7 +56,7 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
       style={{ '--tint': p.tint, '--word': p.tint, zIndex: index + 1 } as CSSProperties}
       className="relative isolate overflow-hidden bg-bg"
     >
-      <div data-stack-body className="relative pb-16 pt-12 md:pb-24 md:pt-16">
+      <div data-stack-body className="relative pb-24 pt-20 md:pb-24 md:pt-20">
       {/* Generated abstract backdrop (image kind 3): CSS gradient mesh, grid and grain in the tint. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="mesh absolute -inset-[10%] opacity-70" />
@@ -66,99 +66,109 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
       </div>
 
       <Container>
-        {/* header: number, title, one-line pitch, links */}
-        <p data-reveal="up" className="label mb-4 flex items-center gap-3 text-gray-400">
+        {/* 1. number and big title */}
+        <p data-reveal="up" className="label mb-5 flex items-center gap-3 text-gray-400">
           <span className="text-tint">{p.number}</span>
           <span className="h-px w-10 bg-white/25" />
           Project
         </p>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-end">
-          <Lines
-            as="h3"
-            id={titleId}
-            lines={[
-              <span key="t">
-                {p.title[0]}
-                <Accent>{p.title[1]}</Accent>
-              </span>,
-            ]}
-            scrub
-            className="whitespace-nowrap text-[min(calc(140vw/var(--len)),6rem)] lg:col-span-7 lg:text-[min(calc(88vw/var(--len)),calc(76rem/var(--len)),7rem)]"
-            style={{ '--len': p.title.join('').length } as CSSProperties}
-          />
-          <div className="space-y-4 lg:col-span-5 lg:pb-2">
-            <p data-reveal="up" className="text-lg leading-snug text-gray-200">
-              {p.pitch}
-            </p>
-            <div data-reveal-group className="flex flex-wrap gap-3">
-              {p.links.map((l) => (
-                <Pill key={l.href} href={l.href} variant={l.primary ? 'primary' : 'secondary'}>
-                  {l.label}
-                </Pill>
-              ))}
+        <Lines
+          as="h3"
+          id={titleId}
+          lines={[
+            <span key="t">
+              {p.title[0]}
+              <Accent>{p.title[1]}</Accent>
+            </span>,
+          ]}
+          scrub
+          className="whitespace-nowrap text-[min(calc(138vw/var(--len)),calc(124rem/var(--len)),11rem)]"
+          style={{ '--len': p.title.join('').length } as CSSProperties}
+        />
+
+        {/* 2. the product, full width: the centrepiece of the section */}
+        <figure className="mt-12">
+          <div data-beat-stage className="relative [perspective:1400px]">
+            {p.beat === 'tilt' && <CountryTicker />}
+            <div data-beat-frame className="relative">
+              <HeroMedia media={p.hero} />
+              {p.beat === 'wipe' && (
+                <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+                  <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
+                </span>
+              )}
             </div>
+            {p.beat === 'stamp' && <Verdicts />}
           </div>
-        </div>
+          <figcaption className="label mt-4 flex items-center gap-2 text-gray-500">
+            <span className="size-1.5 rounded-full bg-tint" />
+            {p.hero.kind === 'sequence' ? p.hero.caption : 'Screen recording'}
+          </figcaption>
+        </figure>
 
-        {/* the story: product on the left, what it does and the real numbers on the right */}
-        <div className="mt-8 grid grid-cols-1 gap-8 md:mt-10 lg:grid-cols-12 lg:gap-10">
-          <figure className="lg:col-span-7">
-            <div data-beat-stage className="relative [perspective:1400px]">
-              {p.beat === 'tilt' && <CountryTicker />}
-              <div data-beat-frame className="relative">
-                <HeroMedia media={p.hero} />
-                {p.beat === 'wipe' && (
-                  <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                    <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
-                  </span>
-                )}
-              </div>
-              {p.beat === 'stamp' && <Verdicts />}
-            </div>
-            <figcaption className="label mt-3 flex items-center gap-2 text-gray-500">
-              <span className="size-1.5 rounded-full bg-tint" />
-              {p.hero.kind === 'sequence' ? p.hero.caption : 'Screen recording'}
-            </figcaption>
-          </figure>
-
-          <div className="flex flex-col gap-7 lg:col-span-5">
-            <div>
-              <Label className="mb-3">What it does</Label>
-              <ol data-reveal-group className="space-y-3">
-                {p.does.map((d, i) => (
-                  <li key={d} className="flex gap-4 border-t border-white/10 pt-3">
-                    <span className="label pt-0.5 text-tint">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="text-[15px] leading-snug text-gray-200">{d}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            {/* Real values from the repo or README, shown as they are (no count-up). */}
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-              {p.numbers.map((n) => (
-                <div key={n.label} className="flex flex-col-reverse justify-end gap-1 bg-[#070707] px-4 py-4">
-                  <dt className="text-[13px] leading-snug text-gray-400">{n.label}</dt>
-                  <dd className="heading text-gradient whitespace-nowrap text-[clamp(1.6rem,6vw,2.4rem)] tabular-nums">
-                    {numberFormat(n.decimals ?? 0)(n.value)}
-                    {n.suffix}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+        {/* 3. pitch and links, below the media */}
+        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-12 md:items-end">
+          <p data-reveal="up" className="text-xl leading-snug text-gray-200 md:col-span-7 md:text-2xl">
+            {p.pitch}
+          </p>
+          <div data-reveal-group className="flex flex-wrap gap-3 md:col-span-5 md:justify-end">
+            {p.links.map((l) => (
+              <Pill key={l.href} href={l.href} variant={l.primary ? 'primary' : 'secondary'}>
+                {l.label}
+              </Pill>
+            ))}
           </div>
         </div>
 
         {p.note && (
-          <p data-reveal="up" className="mt-6 max-w-3xl rounded-2xl border border-white/10 bg-panel px-5 py-3.5 text-sm leading-relaxed text-gray-300">
+          <p data-reveal="up" className="mt-8 max-w-3xl rounded-2xl border border-white/10 bg-panel px-5 py-4 text-sm leading-relaxed text-gray-300">
             <span className="label mr-3 !text-[10px] text-tag">Note</span>
             {p.note}
           </p>
         )}
 
+        {/* 4. what it does + how it is built */}
+        <div className="mt-16 grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-14">
+          <div className="md:col-span-7">
+            <Label className="mb-6">What it does</Label>
+            <ol data-reveal-group className="space-y-5">
+              {p.does.map((d, i) => (
+                <li key={d} className="flex gap-5 border-t border-white/10 pt-5">
+                  <span className="label pt-1 text-tint">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="text-lg leading-relaxed text-gray-200">{d}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="md:col-span-5">
+            <Label className="mb-6">How it is built</Label>
+            <ul data-reveal-group className="flex flex-wrap gap-2.5">
+              {p.stack.map((s) => (
+                <li key={s} className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 font-mono text-[12.5px] text-gray-200">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* 5. the numbers row: real values from the repo or README, shown as they are (no count-up) */}
+        <dl className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 lg:grid-cols-4">
+          {p.numbers.map((n) => (
+            <div key={n.label} className="flex flex-col-reverse justify-end gap-2 bg-[#070707] px-4 py-7 md:px-7 md:py-8">
+              <dt className="text-sm leading-snug text-gray-400">{n.label}</dt>
+              <dd className="heading text-gradient whitespace-nowrap text-[clamp(1.5rem,7.5vw,4rem)] tabular-nums lg:text-[clamp(2.5rem,3.6vw,3.75rem)]">
+                {numberFormat(n.decimals ?? 0)(n.value)}
+                {n.suffix}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
         {/* Desktop only: the gallery as a horizontal strip, pinned and scrubbed sideways (useStrip).
             Phones keep it inside the technical details below. */}
         {p.strip && (
-          <div className="mt-8 hidden lg:block">
+          <div className="mt-16 hidden lg:block">
             <Label className="mb-4">Screens, architecture and code · scroll</Label>
             <div data-strip className="strip -mx-2 px-2">
               <div data-strip-track className="flex w-max items-center gap-6 pb-2">
@@ -173,8 +183,8 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
           </div>
         )}
 
-        {/* optional: how it is built, architecture, code and more screens */}
-        <div className="mt-6 border-t border-white/10 pt-5">
+        {/* 6. optional: architecture, code and more screens (on desktop glassbox shows them in the strip) */}
+        <div className={`mt-14 border-t border-white/10 pt-5 md:mt-12 ${p.strip ? 'lg:hidden' : ''}`}>
           <button
             type="button"
             aria-expanded={open}
@@ -184,8 +194,7 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
           >
             <span>
               <span className="label text-gray-300 group-hover:text-white">{open ? 'Hide' : 'Show'} technical details</span>
-              <span className={`mt-1 block text-sm text-gray-500 ${p.strip ? 'lg:hidden' : ''}`}>Stack, architecture diagram, code from the repo and more screens</span>
-              {p.strip && <span className="mt-1 hidden text-sm text-gray-500 lg:block">The stack it is built with</span>}
+              <span className="mt-1 block text-sm text-gray-500">Architecture diagram, code from the repo and more screens</span>
             </span>
             <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-full border border-white/20 text-lg transition-transform duration-300 ${open ? 'rotate-45' : ''}`}>
               +
@@ -193,17 +202,7 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
           </button>
           <div id={detailsId} role="region" aria-label={`${p.title.join('')}: technical details`} className="expand" data-open={open}>
             <div>
-              <div className="pb-2 pt-6">
-                <Label className="mb-3">How it is built</Label>
-                <ul className="flex flex-wrap gap-2">
-                  {p.stack.map((s) => (
-                    <li key={s} className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 font-mono text-[12px] text-gray-200">
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className={`grid grid-cols-1 gap-x-6 gap-y-8 pb-4 pt-6 md:grid-cols-2 ${p.strip ? 'lg:hidden' : ''}`}>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-8 pb-4 pt-6 md:grid-cols-2">
                 {p.gallery.map((g, i) => (
                   <figure key={i} className={`flex min-w-0 flex-col ${p.gallery.length % 2 && i === p.gallery.length - 1 ? 'md:col-span-2' : ''}`}>
                     <GalleryVisual item={g} />
@@ -222,8 +221,8 @@ function ProjectSection({ project: p, index }: { project: Project; index: number
   )
 }
 
-// Title size comes from its length (--len): a short name is big, PERMISSIONguard still fits a 320px
-// phone and, from 1024px, its 7-of-12 column (capped by the max-w-7xl container, not the viewport).
+// Title size comes from its length (--len): a short name is big (up to 11rem), PERMISSIONguard still
+// fits a 320px phone and the max-w-7xl container.
 
 /* ------------------------------------------------------------------ media */
 
@@ -239,7 +238,7 @@ function HeroMedia({ media }: { media: Media }) {
   if (media.kind === 'video') {
     const slot = frame(
       <>
-        <VideoSlot src={media.src} poster={media.poster} alt={media.alt} />
+        <VideoSlot src={media.src} poster={media.poster} alt={media.alt} startAt={media.frame === 'terminal' ? 4.5 : 0} />
         {/* A terminal at phone width is too small to read: open its last frame (the poster) full size. */}
         {media.frame === 'terminal' && <EnlargeButton src={media.poster} alt={media.alt} width={1280} height={912} className="md:hidden" />}
       </>,

@@ -23,10 +23,10 @@ function About() {
   const root = useRef<HTMLDivElement>(null)
   useReveal(root)
 
-  // Desktop: the text goes from a readable grey to white, top to bottom, as the card scrolls in. A
-  // white copy of the paragraph sits on top of the grey one inside a window: the window and the copy
-  // move in opposite directions (two transforms), so the white region grows without repainting any
-  // text. Mobile: a short drift. Reduced motion: plain white text.
+  // Desktop: word-by-word reveal scrubbed to scroll. Each word goes from a dim but readable 0.35
+  // opacity to 1, in reading order, as the card scrolls through. Opacity only (never color or a
+  // filter), and while the card is on screen the words are their own compositor layers, so lighting
+  // one up does not repaint any text. Mobile: a short drift. Reduced motion: plain text.
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -39,11 +39,24 @@ function About() {
         playOnEnter(card, gsap.from(card, { y: 16, duration: 0.45, ease: 'power2.out', paused: true }))
         return
       }
-      card.classList.add('about-scrub')
-      const scrollTrigger = { trigger: card, start: 'top 92%', end: 'bottom 95%', scrub: true }
-      gsap.fromTo(card.querySelector('.about-window'), { yPercent: -100 }, { yPercent: 0, ease: 'none', scrollTrigger })
-      gsap.fromTo(card.querySelector('.about-copy'), { yPercent: 100 }, { yPercent: 0, ease: 'none', scrollTrigger })
-      return () => card.classList.remove('about-scrub')
+      card.classList.add('about-words')
+      gsap.fromTo(
+        card.querySelectorAll('[data-word]'),
+        { opacity: 0.35 },
+        {
+          opacity: 1,
+          ease: 'none',
+          stagger: 0.05,
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 92%',
+            end: 'bottom 95%',
+            scrub: true,
+            onToggle: (self) => card.classList.toggle('about-live', self.isActive),
+          },
+        },
+      )
+      return () => card.classList.remove('about-words', 'about-live')
     })
     return () => mm.revert()
   }, [])
@@ -70,16 +83,11 @@ function About() {
 
         <div data-about-card className="rounded-3xl border border-white/10 bg-panel p-7 md:p-12">
           <h3 className="sr-only">About me</h3>
-          <div className="relative overflow-hidden">
-            <p className="about-base text-[clamp(1.08rem,1.6vw,1.4rem)] font-light leading-[1.55] tracking-tight text-gray-200">
-              <AboutText />
-            </p>
-            <div aria-hidden="true" className="about-window pointer-events-none absolute inset-0 hidden select-none overflow-hidden">
-              <p className="about-copy text-[clamp(1.08rem,1.6vw,1.4rem)] font-light leading-[1.55] tracking-tight text-white">
-                <AboutText />
-              </p>
-            </div>
-          </div>
+          <p className="text-[clamp(1.08rem,1.6vw,1.4rem)] font-light leading-[1.55] tracking-tight text-gray-100">
+            {ABOUT.map((seg, i) => (
+              <Fragment key={i}>{seg.bold ? <strong className="font-semibold text-white">{words(seg.text)}</strong> : words(seg.text)}</Fragment>
+            ))}
+          </p>
           <p className="label mt-10 border-t border-white/10 pt-6 text-gray-500">Languages · {LANGUAGES}</p>
         </div>
       </Container>
@@ -87,8 +95,9 @@ function About() {
   )
 }
 
-function AboutText() {
-  return ABOUT.map((seg, i) => <Fragment key={i}>{seg.bold ? <strong className="font-semibold">{seg.text}</strong> : seg.text}</Fragment>)
+/** Split text into word spans for the scrubbed reveal, keeping the spaces as real text. */
+function words(text: string) {
+  return text.split(/(\s+)/).map((w, i) => (/^\s+$/.test(w) || !w ? w : <span key={i} data-word="">{w}</span>))
 }
 
 /* ------------------------------------------------------------------ accordion */

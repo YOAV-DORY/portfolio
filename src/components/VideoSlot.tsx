@@ -10,7 +10,8 @@ import { MEDIA } from '../motion/gsap'
  * reduced motion it never autoplays: a play button starts it on request. Poster and video sit on the
  * frame's parallax layer; the tag and the button stay pinned to the frame.
  */
-export function VideoSlot({ src, poster, alt }: { src: string; poster: string; alt: string }) {
+/** startAt: seconds to skip on the first play (a terminal replay begins on an empty screen). */
+export function VideoSlot({ src, poster, alt, startAt = 0 }: { src: string; poster: string; alt: string; startAt?: number }) {
   const video = useRef<HTMLVideoElement>(null)
   const [failed, setFailed] = useState(false)
   const [playing, setPlaying] = useState(false)
@@ -46,12 +47,17 @@ export function VideoSlot({ src, poster, alt }: { src: string; poster: string; a
     near.observe(v)
     visible.observe(v)
     v.addEventListener('canplay', tryPlay)
+    const skipIn = () => {
+      if (startAt && v.currentTime < startAt) v.currentTime = startAt
+    }
+    v.addEventListener('loadedmetadata', skipIn, { once: true })
     return () => {
       near.disconnect()
       visible.disconnect()
       v.removeEventListener('canplay', tryPlay)
+      v.removeEventListener('loadedmetadata', skipIn)
     }
-  }, [])
+  }, [startAt])
 
   return (
     <>

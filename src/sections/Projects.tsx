@@ -4,7 +4,7 @@ import { Accent, Container, Label, Lines, Pill } from '../components/ui'
 import { VideoSlot } from '../components/VideoSlot'
 import { PROJECTS, type GalleryItem, type Media, type Project } from '../content/projects'
 import { SITE } from '../content/site'
-import { gsap, MEDIA, type MediaConditions } from '../motion/gsap'
+import { gsap, MEDIA, ScrollTrigger, type MediaConditions } from '../motion/gsap'
 import { numberFormat, playOnEnter, useReveal } from '../motion/useReveal'
 import { CodeCard } from '../visuals/CodeCard'
 import { ResponsiveDiagram } from '../visuals/Diagrams'
@@ -12,9 +12,11 @@ import { EnlargeButton, Zoomable } from '../components/Zoomable'
 
 export function Projects() {
   const intro = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLElement>(null)
   useReveal(intro)
+  useStack(root)
   return (
-    <section id="projects" aria-labelledby="projects-title" className="relative">
+    <section id="projects" ref={root} aria-labelledby="projects-title" className="relative">
       <div ref={intro} className="border-t border-white/10 pb-2 pt-14 md:pt-20">
         <Container className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
@@ -29,18 +31,19 @@ export function Projects() {
           </div>
         </Container>
       </div>
-      {PROJECTS.map((p) => (
-        <ProjectSection key={p.id} project={p} />
+      {PROJECTS.map((p, i) => (
+        <ProjectSection key={p.id} project={p} index={i} />
       ))}
     </section>
   )
 }
 
-function ProjectSection({ project: p }: { project: Project }) {
+function ProjectSection({ project: p, index }: { project: Project; index: number }) {
   const root = useRef<HTMLElement>(null)
   const [open, setOpen] = useState(false)
   useReveal(root)
   useBeat(root, p.beat)
+  useStrip(root, Boolean(p.strip))
   const titleId = `${p.id}-title`
   const detailsId = `${p.id}-details`
 
@@ -49,9 +52,11 @@ function ProjectSection({ project: p }: { project: Project }) {
       id={p.id}
       ref={root}
       aria-labelledby={titleId}
-      style={{ '--tint': p.tint, '--word': p.tint } as CSSProperties}
-      className="relative isolate overflow-hidden py-12 md:py-16"
+      data-stack
+      style={{ '--tint': p.tint, '--word': p.tint, zIndex: index + 1 } as CSSProperties}
+      className="relative isolate overflow-hidden bg-bg"
     >
+      <div data-stack-body className="relative pb-16 pt-12 md:pb-24 md:pt-16">
       {/* Generated abstract backdrop (image kind 3): CSS gradient mesh, grid and grain in the tint. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="mesh absolute -inset-[10%] opacity-70" />
@@ -77,6 +82,7 @@ function ProjectSection({ project: p }: { project: Project }) {
                 <Accent>{p.title[1]}</Accent>
               </span>,
             ]}
+            scrub
             className="whitespace-nowrap text-[min(calc(140vw/var(--len)),6rem)] lg:col-span-7 lg:text-[min(calc(88vw/var(--len)),calc(76rem/var(--len)),7rem)]"
             style={{ '--len': p.title.join('').length } as CSSProperties}
           />
@@ -103,7 +109,7 @@ function ProjectSection({ project: p }: { project: Project }) {
                 <HeroMedia media={p.hero} />
                 {p.beat === 'wipe' && (
                   <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                    <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent mix-blend-overlay" />
+                    <span data-sheen className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
                   </span>
                 )}
               </div>
@@ -149,6 +155,24 @@ function ProjectSection({ project: p }: { project: Project }) {
           </p>
         )}
 
+        {/* Desktop only: the gallery as a horizontal strip, pinned and scrubbed sideways (useStrip).
+            Phones keep it inside the technical details below. */}
+        {p.strip && (
+          <div className="mt-8 hidden lg:block">
+            <Label className="mb-4">Screens, architecture and code · scroll</Label>
+            <div data-strip className="strip -mx-2 px-2">
+              <div data-strip-track className="flex w-max items-center gap-6 pb-2">
+                {p.gallery.map((g, i) => (
+                  <figure key={i} className="flex w-[min(34rem,40vw)] shrink-0 snap-start flex-col">
+                    <GalleryVisual item={g} />
+                    <figcaption className="label mt-3 text-gray-500">{g.caption}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* optional: how it is built, architecture, code and more screens */}
         <div className="mt-6 border-t border-white/10 pt-5">
           <button
@@ -160,7 +184,8 @@ function ProjectSection({ project: p }: { project: Project }) {
           >
             <span>
               <span className="label text-gray-300 group-hover:text-white">{open ? 'Hide' : 'Show'} technical details</span>
-              <span className="mt-1 block text-sm text-gray-500">Stack, architecture diagram, code from the repo and more screens</span>
+              <span className={`mt-1 block text-sm text-gray-500 ${p.strip ? 'lg:hidden' : ''}`}>Stack, architecture diagram, code from the repo and more screens</span>
+              {p.strip && <span className="mt-1 hidden text-sm text-gray-500 lg:block">The stack it is built with</span>}
             </span>
             <span aria-hidden="true" className={`grid size-10 shrink-0 place-items-center rounded-full border border-white/20 text-lg transition-transform duration-300 ${open ? 'rotate-45' : ''}`}>
               +
@@ -178,7 +203,7 @@ function ProjectSection({ project: p }: { project: Project }) {
                   ))}
                 </ul>
               </div>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-8 pb-4 pt-6 md:grid-cols-2">
+              <div className={`grid grid-cols-1 gap-x-6 gap-y-8 pb-4 pt-6 md:grid-cols-2 ${p.strip ? 'lg:hidden' : ''}`}>
                 {p.gallery.map((g, i) => (
                   <figure key={i} className={`flex min-w-0 flex-col ${p.gallery.length % 2 && i === p.gallery.length - 1 ? 'md:col-span-2' : ''}`}>
                     <GalleryVisual item={g} />
@@ -190,6 +215,9 @@ function ProjectSection({ project: p }: { project: Project }) {
           </div>
         </div>
       </Container>
+      </div>
+      {/* Shade over a project as the next one slides over it (the sticky stack). */}
+      <div data-stack-shade aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 bg-black opacity-0" />
     </section>
   )
 }
@@ -256,7 +284,7 @@ function Sequence({ frames }: { frames: Array<{ src: string; alt: string }> }) {
           />
         ))}
       </div>
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-black/40 px-2 py-1.5 backdrop-blur" aria-hidden="true">
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-black/60 px-2 py-1.5" aria-hidden="true">
         {frames.map((f, i) => (
           <span key={f.src} className={`h-[3px] rounded-full transition-all duration-500 ${i === index ? 'w-6 bg-tint' : 'w-2 bg-white/40'}`} />
         ))}
@@ -311,7 +339,7 @@ function Verdicts() {
           key={v}
           data-verdict
           style={{ borderColor: c, color: c }}
-          className="flex items-center gap-3 rounded-lg border-2 bg-black/85 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest shadow-xl backdrop-blur md:px-4 md:py-2 md:text-sm"
+          className="flex items-center gap-3 rounded-lg border-2 bg-black/85 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest shadow-xl md:px-4 md:py-2 md:text-sm"
         >
           {v}
           <span className="font-normal normal-case tracking-normal text-gray-300">{what}</span>
@@ -363,3 +391,85 @@ function useBeat(scope: RefObject<HTMLElement | null>, beat: Project['beat']) {
     return () => mm.revert()
   }, [scope, beat])
 }
+
+/* ------------------------------------------------------------------ sticky project stack
+   Each project is sticky with its top at (viewport height - its own height), so it scrolls normally
+   until its bottom reaches the bottom of the screen, then stays while the next project (higher
+   z-index, opaque) slides up over it. Meanwhile the covered one recedes a little: its body scales to
+   0.96 and a black shade fades in (transform and opacity only, one scrubbed timeline per project).
+   ScrollTrigger cannot measure inside stuck elements, so sticky is switched off while it refreshes. */
+function useStack(scope: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const root = scope.current
+    if (!root) return
+    const sections = Array.from(root.querySelectorAll<HTMLElement>('[data-stack]'))
+    const html = document.documentElement
+    const place = () => sections.forEach((s) => s.style.setProperty('--stack-top', `${Math.min(0, window.innerHeight - s.offsetHeight)}px`))
+    const ro = new ResizeObserver(place)
+    sections.forEach((s) => ro.observe(s))
+    window.addEventListener('resize', place)
+    place()
+    const unstick = () => html.classList.add('no-stack')
+    const restick = () => html.classList.remove('no-stack')
+    ScrollTrigger.addEventListener('refreshInit', unstick)
+    ScrollTrigger.addEventListener('refresh', restick)
+
+    const mm = gsap.matchMedia(root)
+    mm.add(MEDIA.motion, () => {
+      sections.slice(0, -1).forEach((section, i) => {
+        const body = section.querySelector('[data-stack-body]')
+        const shade = section.querySelector('[data-stack-shade]')
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: sections[i + 1],
+            start: 'top bottom',
+            end: 'top top',
+            scrub: true,
+            // Own compositor layers only while it moves, so scaling never repaints the section.
+            onToggle: (self) => {
+              const value = self.isActive ? 'transform' : ''
+              ;(body as HTMLElement).style.willChange = value
+              ;(shade as HTMLElement).style.willChange = self.isActive ? 'opacity' : ''
+            },
+            // No transform left behind: a pinned element inside (glassbox's strip) needs none.
+            onLeaveBack: () => gsap.set(body, { clearProps: 'transform' }),
+          },
+        })
+        tl.to(body, { scale: 0.96, transformOrigin: '50% 0%', ease: 'none' }, 0).to(shade, { opacity: 0.55, ease: 'none' }, 0)
+      })
+    })
+    return () => {
+      mm.revert()
+      ro.disconnect()
+      window.removeEventListener('resize', place)
+      ScrollTrigger.removeEventListener('refreshInit', unstick)
+      ScrollTrigger.removeEventListener('refresh', restick)
+      restick()
+    }
+  }, [scope])
+}
+
+/* ------------------------------------------------------------------ horizontal strip (desktop)
+   From 1024px with motion allowed, the strip pins below the header and the scroll moves its track
+   sideways through the gallery (x only). Without motion it stays a normal sideways-scrolling row. */
+function useStrip(scope: RefObject<HTMLElement | null>, enabled: boolean) {
+  useLayoutEffect(() => {
+    const el = scope.current
+    if (!el || !enabled) return
+    const mm = gsap.matchMedia(el)
+    mm.add(`${MEDIA.motion} and (min-width: 1024px)`, () => {
+      const strip = el.querySelector<HTMLElement>('[data-strip]')!
+      const track = strip.querySelector<HTMLElement>('[data-strip-track]')!
+      strip.classList.add('is-pinned')
+      const distance = () => Math.max(0, track.scrollWidth - strip.clientWidth)
+      gsap.to(track, {
+        x: () => -distance(),
+        ease: 'none',
+        scrollTrigger: { trigger: strip, start: 'top 96px', end: () => `+=${distance()}`, pin: true, scrub: true, anticipatePin: 1, invalidateOnRefresh: true, refreshPriority: 1 },
+      })
+      return () => strip.classList.remove('is-pinned')
+    })
+    return () => mm.revert()
+  }, [scope, enabled])
+}
+

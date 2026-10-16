@@ -106,6 +106,9 @@
 .line-mask > [data-line] {
   display: block;
 }
+[data-reveal-lines='scrub'] .line-mask {
+  overflow: hidden; /* the scrubbed roll-in rises from inside its mask */
+}
 
 /* ---------------------------------------------------------------- marquee */
 @keyframes marquee {
@@ -216,7 +219,7 @@
 /* ---------------------------------------------------------------- hero intro
    html.intro is set by the inline script in index.html before first paint. These rules describe the
    gathered state the GSAP timeline starts from, so the prerendered hero never flashes its final layout. */
-html.intro {
+html.intro-lock {
   overflow: hidden;
 }
 .glyph-from {
@@ -260,14 +263,16 @@ html.intro .skip-intro {
 }
 
 /* ---------------------------------------------------------------- grain + mesh backdrops
-   Generated abstract visuals (image kind 3): CSS only, used as backgrounds, never as product shots. */
+   Generated abstract visuals (image kind 3): CSS only, used as backgrounds, never as product shots.
+   Both are static paint: no filter, no blend mode, no animation, so scrolling never re-rasterises
+   them. (They used to be a blur(30px) on four ~2-megapixel layers, drifting forever, plus five
+   mix-blend-mode overlays: the biggest cost on the page.) */
 .grain::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.09;
-  mix-blend-mode: overlay;
+  opacity: 0.05;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 .grid-lines {
@@ -278,25 +283,76 @@ html.intro .skip-intro {
   mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
 }
-@keyframes mesh-drift {
-  0% { transform: translate3d(-3%, -2%, 0) scale(1); }
-  50% { transform: translate3d(3%, 2%, 0) scale(1.08); }
-  100% { transform: translate3d(-3%, -2%, 0) scale(1); }
-}
+/* Soft tinted glow without a blur: wide radial gradients with low, gradual stops. */
 .mesh {
   background:
-    radial-gradient(40% 35% at 18% 22%, color-mix(in oklab, var(--tint) 34%, transparent), transparent 70%),
-    radial-gradient(35% 40% at 82% 30%, color-mix(in oklab, var(--tint) 18%, transparent), transparent 70%),
-    radial-gradient(50% 45% at 60% 85%, color-mix(in oklab, var(--tint) 14%, transparent), transparent 70%);
-  filter: blur(30px);
+    radial-gradient(48% 42% at 18% 22%, color-mix(in oklab, var(--tint) 26%, transparent) 0%, color-mix(in oklab, var(--tint) 12%, transparent) 45%, transparent 80%),
+    radial-gradient(42% 46% at 82% 30%, color-mix(in oklab, var(--tint) 14%, transparent) 0%, color-mix(in oklab, var(--tint) 6%, transparent) 45%, transparent 80%),
+    radial-gradient(58% 52% at 60% 85%, color-mix(in oklab, var(--tint) 11%, transparent) 0%, color-mix(in oklab, var(--tint) 5%, transparent) 45%, transparent 80%);
 }
+
+/* ---------------------------------------------------------------- sticky project stack (motion only)
+   Each project sticks once its bottom reaches the bottom of the screen; the next slides over it.
+   --stack-top is set per section by useStack; html.no-stack lets ScrollTrigger measure. */
 @media (prefers-reduced-motion: no-preference) {
-  .mesh {
-    animation: mesh-drift 28s ease-in-out infinite;
+  [data-stack] {
+    position: sticky;
+    top: var(--stack-top, 0px);
+  }
+  html.no-stack [data-stack] {
+    position: relative;
+    top: 0; /* a relative element would otherwise be shifted by the negative sticky top */
+  }
+}
+/* glassbox gallery strip: a sideways-scrolling row by default, pinned and scrubbed from 1024px */
+.strip {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+.strip.is-pinned {
+  overflow: hidden;
+  scroll-snap-type: none;
+}
+/* Small elements moved by scroll get their own compositor layer, so they never repaint. */
+@media (prefers-reduced-motion: no-preference) {
+  .strip.is-pinned [data-strip-track],
+  .marquee,
+  [data-reveal-lines='scrub'] [data-line],
+  .hero-row,
+  [data-portrait],
+  [data-timeline] {
+    will-change: transform;
   }
 }
 
-/* ---------------------------------------------------------------- misc */
+/* ---------------------------------------------------------------- about reveal (desktop + motion) */
+.about-scrub .about-base {
+  color: #8a8a93;
+}
+.about-scrub .about-window {
+  display: block;
+  will-change: transform;
+}
+.about-scrub .about-copy {
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------- skip off-screen rendering
+   Below-the-fold sections are not laid out or painted until they come near. `auto` remembers the
+   real size after the first render, so the page height settles and anchors land correctly. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--cv-size, 1200px);
+}
+
+/* ---------------------------------------------------------------- misc
+   Infinite animations pause while their element is off screen (src/lib/offscreen.ts adds .paused). */
+.paused,
+.paused *,
+.paused::after {
+  animation-play-state: paused !important;
+}
 @keyframes ping-dot {
   0% { transform: scale(1); opacity: 0.7; }
   80%, 100% { transform: scale(2.6); opacity: 0; }

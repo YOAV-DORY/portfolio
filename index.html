@@ -44,15 +44,17 @@
     <script>
       // Decide before first paint whether the intro plays, so the prerendered hero never flashes.
       // It plays only for motion-OK visitors landing on the top of the page, and at most once per tab.
-      // A failsafe drops the intro state after 4.5 s even if the app script never runs.
+      // Scrolling is locked (intro-lock) for 1.2 s of wall-clock time at most, whatever the intro is
+      // doing; a failsafe drops the intro state after 4.5 s even if the app script never runs.
       ;(function () {
         var d = document.documentElement
         var motionOk = window.matchMedia('(prefers-reduced-motion: no-preference)').matches
         var seen = false
         try { seen = sessionStorage.getItem('yd.intro') === '1' } catch (e) {}
         if (motionOk && !seen && !location.hash && window.scrollY === 0) {
-          d.classList.add('intro')
-          window.__introFailsafe = setTimeout(function () { d.classList.remove('intro') }, 4500)
+          d.classList.add('intro', 'intro-lock')
+          setTimeout(function () { d.classList.remove('intro-lock') }, 1200)
+          window.__introFailsafe = setTimeout(function () { d.classList.remove('intro', 'intro-lock') }, 4500)
         }
       })()
     </script>

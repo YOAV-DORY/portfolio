@@ -1,8 +1,13 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-// Registered once, in the browser only (the prerender runs this module in Node).
-if (typeof window !== 'undefined') gsap.registerPlugin(ScrollTrigger)
+// Registered once, in the browser only (the prerender runs this module in Node). Lag smoothing is
+// off: on a busy machine GSAP would otherwise stretch slow frames and the ~3.3 s intro could take
+// much longer in wall-clock time. With it off, animations follow the real clock.
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger)
+  gsap.ticker.lagSmoothing(0)
+}
 
 export { gsap, ScrollTrigger }
 

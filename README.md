@@ -68,22 +68,44 @@ Or without Git: `npm run build`, then `npx wrangler pages deploy dist --project-
 ## How the motion works
 
 - `src/motion/useReveal.ts`: one hook per section reads data attributes (`data-reveal`,
-  `data-reveal-group`, `data-reveal-lines`, `data-parallax`, `data-magnetic`, `data-count`) inside
+  `data-reveal-group`, `data-reveal-lines`, `data-parallax`, `data-magnetic`) inside
   `gsap.matchMedia`. Nothing animates for `prefers-reduced-motion: reduce`; the prerendered HTML is
   already the final state, so reduced motion just shows it.
-- Reveals take 0.8 s and count-ups 1.2 s, starting as content enters the screen. `playOnEnter` snaps
-  anything to its final state when it is reached by a fast scroll or an anchor jump, or scrolled past
-  mid-animation, so a skimming reader never sees blank blocks or half-counted numbers.
+- Content is never hidden: reveals are a 0.45 s drift, completed at once for fast scrolls and anchor
+  jumps (`playOnEnter`). Metrics show their real values from first paint (no count-ups).
+- Scroll-driven extras (transform/opacity only, motion-OK visitors only):
+  - hero: portrait and name drift up and fade a little as you scroll away;
+  - About (desktop): grey-to-white text, revealed by two counter-moving transforms over a white copy;
+  - experience: a timeline line draws itself down the left of the rows;
+  - skills: the marquees skew (up to 6deg) and speed up with scroll velocity, then settle;
+  - project titles and the Contact heading roll up into their line masks with scroll;
+  - projects: a sticky stack, each project staying put while the next slides over it (the covered
+    one scales to 0.96 under a shade); `useStack` in `src/sections/Projects.tsx`;
+  - glassbox (desktop): its gallery is a pinned strip scrubbed sideways (`useStrip`).
 - `src/sections/Hero.tsx`: the intro. PORTFOLIO assembles, morphs a letter every 150 ms into YOAV
-  DORY, moves to place, the halves split, the buttons rise; about 3.3 s, scroll locked meanwhile,
-  "Skip intro" or Esc ends it. `index.html` decides before first paint whether it plays, with a
-  4.5 s failsafe.
+  DORY, moves to place, the halves split, the buttons rise; about 3.3 s, "Skip intro" or Esc ends
+  it. Scrolling is locked for at most 1.2 s of wall-clock time (`intro-lock`, released by a timer in
+  `index.html`), and GSAP lag smoothing is off, so a busy machine cannot stretch the intro.
 - `src/webgl/tiles.ts`: instanced tiles sampled from the photo, dust to portrait, pushed by the
   pointer. Two seconds after the intro the mosaic fades into the full-resolution photo on every
   device; after that the pointer only scatters a few tiles around itself. One WebGL2 context, DPR
   capped at 2, draws only while something moves.
-- Each project has its own beat (`useBeat` in `src/sections/Projects.tsx`): verdict stamps,
-  a glass wipe, a 3D tilt.
+
+## Performance rules
+
+- Animate only `transform` and `opacity`. No `filter`, `backdrop-filter` or
+  `mix-blend-mode`: the background glows are plain radial gradients, the grain is a low-opacity
+  tile, the header is a near-opaque black.
+- Infinite CSS animations pause off screen (`src/lib/offscreen.ts`, `data-pause-offscreen`); with
+  the page idle at the top, `document.getAnimations()` has nothing running.
+- `#cv` and `#contact` use `content-visibility: auto` with measured placeholder sizes. The projects
+  section does not: its sticky stack and pinned strip need no paint containment. In-page links
+  re-align after the scroll ends in case a placeholder changed size on the way.
+- Elements moved by scroll get their own compositor layer (`will-change`), the stacked project body
+  only while it is moving.
+- `node scripts/perf.mjs <url> <label> [cpuThrottle]` measures the intro, when a real wheel scroll
+  first works, idle animations, frame times, long tasks and Chrome-trace paint/raster time while
+  scrolling, at 1280x720 and 390x844, DPR 2, with the CPU slowed 4x by default.
 
 ## Images, honestly
 
@@ -110,7 +132,7 @@ PYTHON=/path/to/python-with-pillow node scripts/verify.mjs http://localhost:4180
 
 Writes `shots/` (gitignored): the intro at fixed times, stitched full pages and per-section shots at
 320, 390 and 1440 px, a reduced-motion pass, the mobile menu, and each project scrolled in six steps.
-It fails loudly on sideways overflow, elements wider than the viewport, clipped text, text left
+(`perf.mjs` above covers runtime cost.) It fails loudly on sideways overflow, elements wider than the viewport, clipped text, text left
 hidden after its reveal, more than 40vh of empty space, broken images and console errors. The `fast`
 pass scrolls in big programmatic jumps with pauses (1280 and 390 px) and checks that numbers on
 screen are final, nothing is hidden, no screen is near-black, the videos play, the portrait resolves

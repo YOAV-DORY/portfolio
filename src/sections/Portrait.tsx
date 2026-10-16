@@ -66,7 +66,7 @@ export function Portrait({ className = '' }: { className?: string }) {
   }, [])
 
   return (
-    <div className={`pointer-events-none select-none ${className}`}>
+    <div data-portrait className={`pointer-events-none select-none ${className}`}>
       {/* The static cut-out: the reduced-motion and no-WebGL view, and what the prerendered page shows. */}
       <img
         src={PHOTO}

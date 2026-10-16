@@ -26,7 +26,7 @@ export const intro = {
     if (done) return
     done = true
     window.clearTimeout(window.__introFailsafe)
-    document.documentElement.classList.remove('intro')
+    document.documentElement.classList.remove('intro', 'intro-lock')
     try {
       sessionStorage.setItem('yd.intro', '1')
     } catch {

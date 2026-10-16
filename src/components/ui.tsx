@@ -47,15 +47,18 @@ export function Lines({
   className = '',
   id,
   style,
+  scrub = false,
 }: {
   as?: 'h1' | 'h2' | 'h3'
   lines: ReactNode[]
   className?: string
   id?: string
   style?: CSSProperties
+  /** Roll the lines up into their masks with scroll instead of a one-shot drift. */
+  scrub?: boolean
 }) {
   return (
-    <Tag id={id} data-reveal-lines className={`heading ${className}`} style={style}>
+    <Tag id={id} data-reveal-lines={scrub ? 'scrub' : ''} className={`heading ${className}`} style={style}>
       {lines.map((line, i) => (
         <span key={i} className="line-mask">
           <span data-line className="text-gradient">

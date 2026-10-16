@@ -10,6 +10,8 @@ import { gsap, MEDIA, REVEAL, ScrollTrigger, type MediaConditions } from './gsap
  *   data-reveal-delay="0.2"                      extra delay in seconds
  *   data-reveal-group                            children drift in from y 12, stagger .04 (data-reveal-stagger)
  *   data-reveal-lines                            each [data-line] drifts up from yPercent 18
+ *   data-reveal-lines="scrub"                    lines roll up into their mask with scroll (yPercent 75 and a
+ *                                                slight rotate), done by the time the heading is at 72%
  *   data-parallax-frame > data-parallax          image drifts yPercent -6 to 6 with scroll (scrub)
  *   data-parallax="top"                          same travel, anchored at the top: yPercent 0 to -12
  *   data-magnetic=".3"                           follows the pointer (fine pointers only), factor = value
@@ -40,7 +42,16 @@ export function useReveal(scope: RefObject<HTMLElement | null>) {
       }
 
       for (const el of all('[data-reveal-lines]')) {
-        const tween = gsap.from(el.querySelectorAll('[data-line]'), { ...base, yPercent: 18, stagger: 0.05, delay: Number(el.dataset.revealDelay ?? 0) })
+        const lines = el.querySelectorAll('[data-line]')
+        if (el.dataset.revealLines === 'scrub') {
+          gsap.fromTo(
+            lines,
+            { yPercent: 75, rotate: 4, transformOrigin: '0% 100%' },
+            { yPercent: 0, rotate: 0, ease: 'none', stagger: 0.1, scrollTrigger: { trigger: el, start: 'top bottom', end: 'top 72%', scrub: true } },
+          )
+          continue
+        }
+        const tween = gsap.from(lines, { ...base, yPercent: 18, stagger: 0.05, delay: Number(el.dataset.revealDelay ?? 0) })
         playOnEnter(el, tween)
       }
 

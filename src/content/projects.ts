@@ -27,6 +27,8 @@ export type Project = {
   pitch: string
   tint: string
   beat: Beat
+  /** Desktop: show the gallery as a pinned horizontal strip instead of inside the details. */
+  strip?: boolean
   links: Array<{ label: string; href: string; primary?: boolean }>
   note?: string
   hero: Media
@@ -108,6 +110,7 @@ commands:
     pitch: 'A credit-risk model you can see inside: every approve or decline comes with its reasons.',
     tint: '#8fa2ff',
     beat: 'wipe',
+    strip: true,
     links: [
       { label: 'Live demo', href: 'https://glassbox-uayo.onrender.com', primary: true },
       { label: 'GitHub', href: 'https://github.com/YOAV-DORY/glassbox' },

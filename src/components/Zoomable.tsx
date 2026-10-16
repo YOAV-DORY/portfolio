@@ -63,7 +63,7 @@ export function Zoomable(img: Img) {
     <>
       <button type="button" onClick={zoom.open} className="group relative block w-full cursor-zoom-in" aria-label={`Enlarge: ${img.alt}`}>
         <img src={img.src} alt={img.alt} width={img.width} height={img.height} loading="lazy" decoding="async" className="block h-auto w-full" />
-        <span aria-hidden="true" className="label absolute bottom-3 right-3 rounded-full bg-black/75 px-3 py-1.5 !text-[10px] text-white backdrop-blur transition-colors group-hover:bg-accent group-hover:text-black">
+        <span aria-hidden="true" className="label absolute bottom-3 right-3 rounded-full bg-black/75 px-3 py-1.5 !text-[10px] text-white transition-colors group-hover:bg-accent group-hover:text-black">
           Enlarge
         </span>
       </button>
@@ -81,7 +81,7 @@ export function EnlargeButton({ className = '', ...img }: Img & { className?: st
         type="button"
         onClick={zoom.open}
         aria-label={`Enlarge: ${img.alt}`}
-        className={`label absolute right-3 top-3 z-10 min-h-9 rounded-full bg-black/75 px-3 py-1.5 !text-[10px] text-white backdrop-blur ${className}`}
+        className={`label absolute right-3 top-3 z-10 min-h-9 rounded-full bg-black/75 px-3 py-1.5 !text-[10px] text-white ${className}`}
       >
         Enlarge
       </button>

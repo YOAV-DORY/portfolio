@@ -51,9 +51,8 @@ export function Hero() {
       const dl = before.l.left - after.l.left
       const dr = before.r.left - after.r.left
 
-      html.style.overflow = 'hidden' // scroll stays locked until the very end
+      // Scrolling is not locked here: index.html locks it for at most 1.2 s of wall-clock time.
       const release = () => {
-        html.style.overflow = ''
         gsap.set([title, ...halves, ...fades, ...fromGlyphs, ...toGlyphs, ...letterSlots, mid], { clearProps: 'all' })
         intro.finish()
       }
@@ -99,6 +98,20 @@ export function Hero() {
         skipButton?.removeEventListener('click', onSkip)
         if (tl.progress() < 1) tl.progress(1)
       }
+    })
+    return () => mm.revert()
+  }, [])
+
+  // Scroll-out: as the hero leaves, the portrait and the name drift up and fade a little (one trigger,
+  // transform + opacity only). The name moves via its row, which the intro never animates.
+  useLayoutEffect(() => {
+    const el = root.current
+    if (!el) return
+    const mm = gsap.matchMedia(el)
+    mm.add(MEDIA.motion, () => {
+      const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: 'top top', end: 'bottom top', scrub: true } })
+      tl.fromTo(el.querySelector('[data-portrait]'), { yPercent: 0, opacity: 1 }, { yPercent: -14, opacity: 0.35, ease: 'none' }, 0)
+      tl.fromTo(el.querySelector('.hero-row'), { yPercent: 0, opacity: 1 }, { yPercent: -45, opacity: 0.5, ease: 'none' }, 0)
     })
     return () => mm.revert()
   }, [])

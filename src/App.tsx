@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { FEATURES } from './content/site'
+import { pauseOffscreen } from './lib/offscreen'
 import { MEDIA, ScrollTrigger } from './motion/gsap'
 import { Contact, Footer } from './sections/Contact'
 import { Cv } from './sections/Cv'
@@ -16,10 +17,10 @@ export default function App() {
   // Any height change (an accordion row opening, a late image) moves every trigger below it, so
   // ScrollTrigger re-measures once the layout has settled.
   useEffect(() => {
+    // The first callback counts too: content-visibility sections swap their placeholder size for the
+    // real one around first paint, after the triggers were first measured.
     let timer = 0
-    let first = true
     const ro = new ResizeObserver(() => {
-      if (first) return void (first = false)
       window.clearTimeout(timer)
       timer = window.setTimeout(() => ScrollTrigger.refresh(), 150)
     })
@@ -46,10 +47,29 @@ export default function App() {
         history.pushState(null, '', `#${id}`)
         if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
         target.focus({ preventScroll: true })
+        // Sections skipped by content-visibility get their real height as the scroll passes them,
+        // which can move the target. Once the scroll ends, re-align it if it drifted.
+        let tries = 0
+        const settle = () => {
+          const off = Math.abs(target.getBoundingClientRect().top - (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) - (parseFloat(getComputedStyle(target).scrollMarginTop) || 0))
+          if (off > 3 && tries++ < 3) {
+            target.scrollIntoView({ behavior: 'instant', block: 'start' })
+            requestAnimationFrame(() => requestAnimationFrame(settle))
+          }
+        }
+        const supportsScrollEnd = 'onscrollend' in document.documentElement
+        if (supportsScrollEnd) window.addEventListener('scrollend', settle, { once: true })
+        else setTimeout(settle, 900)
       })
     }
     document.addEventListener('click', onClick)
     return () => document.removeEventListener('click', onClick)
+  }, [])
+
+  // Infinite CSS animations (marquees, the status ping) only run while on screen.
+  useEffect(() => {
+    const offs = Array.from(document.querySelectorAll('[data-pause-offscreen]'), (el) => pauseOffscreen(el))
+    return () => offs.forEach((off) => off())
   }, [])
 
   // Images are lazy so the first paint stays light, but a fast scroller can outrun lazy loading. Once

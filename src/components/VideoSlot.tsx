@@ -78,7 +78,7 @@ export function VideoSlot({ src, poster, alt }: { src: string; poster: string; a
         )}
       </div>
       {playing && (
-        <span className="label absolute bottom-3 left-3 rounded-full bg-black/75 px-2.5 py-1 !text-[10px] text-tag backdrop-blur">● Loop</span>
+        <span className="label absolute bottom-3 left-3 rounded-full bg-black/75 px-2.5 py-1 !text-[10px] text-tag">● Loop</span>
       )}
       {manual && !failed && (
         <button
@@ -89,7 +89,7 @@ export function VideoSlot({ src, poster, alt }: { src: string; poster: string; a
             if (v.paused) v.play().catch(() => setFailed(true))
             else v.pause()
           }}
-          className="label absolute bottom-3 right-3 rounded-full border border-white/25 bg-black/75 px-4 py-2 text-white backdrop-blur hover:border-accent"
+          className="label absolute bottom-3 right-3 rounded-full border border-white/25 bg-black/75 px-4 py-2 text-white hover:border-accent"
         >
           {playing ? 'Pause' : 'Play video'}
         </button>

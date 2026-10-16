@@ -64,11 +64,13 @@ async function scrollThrough(page) {
 
 async function layoutChecks(page, label, errors) {
   const result = await page.evaluate(() => {
+    // measure the natural layout: sticky project stack off (as ScrollTrigger does while refreshing)
+    document.documentElement.classList.add('no-stack')
     const vw = document.documentElement.clientWidth
     const wide = []
     for (const el of document.querySelectorAll('body *')) {
       const r = el.getBoundingClientRect()
-      if (!r.width || el.closest('.marquee, [aria-hidden="true"], .sr-only, pre')) continue
+      if (!r.width || el.closest('.marquee, [aria-hidden="true"], .sr-only, pre, [data-strip]')) continue
       if (r.right > vw + 1 || r.left < -1) {
         const s = getComputedStyle(el)
         if (s.position === 'fixed' || s.visibility === 'hidden') continue
@@ -96,7 +98,8 @@ async function layoutChecks(page, label, errors) {
     // Empty space: merge the vertical extents of every visible piece of content and find the longest
     // stretch with none (backgrounds don't count). The review asked for no more than 40vh anywhere.
     const spans = []
-    for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main li, main a, main img, main video, main canvas, main svg, main dd, main dt, main pre, main button, footer p, footer a')) {
+    // .pin-spacer: the scroll distance of a pinned strip counts as content (the strip is on screen)
+    for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main li, main a, main img, main video, main canvas, main svg, main dd, main dt, main pre, main button, footer p, footer a, .pin-spacer')) {
       if (el.closest('.sr-only, [aria-hidden="true"] .sr-only')) continue
       const r = el.getBoundingClientRect()
       if (r.width < 4 || r.height < 4) continue
@@ -115,6 +118,7 @@ async function layoutChecks(page, label, errors) {
       end = Math.max(end, b)
     }
     gaps.sort((a, b) => b.px - a.px)
+    document.documentElement.classList.remove('no-stack')
     const broken = [...document.images].filter((i) => i.complete && i.naturalWidth === 0 && i.loading !== 'lazy').map((i) => i.src)
     return {
       scrollWidth: document.documentElement.scrollWidth,
@@ -225,6 +229,7 @@ if (only.includes('reduced')) {
     const { ctx, page, errors } = await context(vp, { reduced: true, skipIntro: false })
     await page.goto(base, { waitUntil: 'networkidle' })
     await page.waitForTimeout(600)
+    await scrollThrough(page) // content-visibility sections get their real size once rendered
     const introOn = await page.evaluate(() => document.documentElement.classList.contains('intro'))
     console.log(`reduced ${vp.width}: intro class present = ${introOn} (expected false)`)
     await layoutChecks(page, `reduced ${vp.width}`, errors)
@@ -378,7 +383,12 @@ if (only.includes('fast')) {
     await page.screenshot({ path: `${out}scroll-${vp.width}-backtotop.png` })
 
     // technical details + enlarge
-    await page.locator('#project-1').getByRole('button', { name: /show technical details/i }).click()
+    // A visitor reaches this button as the project ends (bottom of the screen), before the next project
+    // slides over it: scroll there the same way, then click.
+    const toggle = page.locator('#project-1').getByRole('button', { name: /show technical details/i })
+    await toggle.evaluate((b) => b.scrollIntoView({ block: 'end', behavior: 'instant' }))
+    await page.waitForTimeout(300)
+    await toggle.click()
     await page.waitForTimeout(800)
     const details = await page.evaluate(() => {
       const panel = document.getElementById('project-1-details')
@@ -393,14 +403,15 @@ if (only.includes('fast')) {
         codeSideways: pre.scrollWidth > pre.clientWidth + 1,
       }
     })
-    await page.locator('#project-1-details').scrollIntoViewIfNeeded()
-    await page.locator('#project-1-details svg[role="img"]').filter({ visible: true }).first().scrollIntoViewIfNeeded()
+    await page.locator('#project-1-details svg[role="img"]').filter({ visible: true }).first().evaluate((x) => x.scrollIntoView({ block: 'end', behavior: 'instant' }))
     await page.waitForTimeout(400)
     await page.screenshot({ path: `${out}scroll-${vp.width}-details-diagram.png` })
-    await page.locator('#project-1-details pre').scrollIntoViewIfNeeded()
+    await page.locator('#project-1-details pre').evaluate((x) => x.scrollIntoView({ block: 'end', behavior: 'instant' }))
     await page.waitForTimeout(300)
     await page.screenshot({ path: `${out}scroll-${vp.width}-details-code.png` })
     const enlarge = page.locator('#project-1-details').getByRole('button', { name: /^enlarge/i }).first()
+    await enlarge.evaluate((b) => b.scrollIntoView({ block: 'end', behavior: 'instant' }))
+    await page.waitForTimeout(300)
     await enlarge.click()
     await page.waitForTimeout(600)
     const dialog = await page.evaluate(() => {

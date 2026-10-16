@@ -81,7 +81,7 @@ export function Nav() {
       inert={!introDone}
       className={`fixed inset-x-0 top-0 z-50 transition-[transform,opacity,background-color,border-color,backdrop-filter] duration-700 ease-[var(--ease-out)] ${
         introDone ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-      } ${solid ? 'border-b border-white/10 bg-black/70 backdrop-blur-xl' : 'border-b border-transparent'}`}
+      } ${solid ? 'border-b border-white/10 bg-black/80' : 'border-b border-transparent'}`}
     >
       <a href="#cv" className="label sr-only z-[60] rounded-full bg-accent px-4 py-2 text-black focus:not-sr-only focus:absolute focus:left-4 focus:top-3">
         Skip to content

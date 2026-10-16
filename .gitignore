@@ -26,3 +26,4 @@ dist-ssr
 # Local capture/recording intermediates and verification shots
 scripts/.raw
 shots
+shots-perf

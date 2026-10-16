@@ -40,7 +40,7 @@ export function Contact() {
   }, [])
 
   return (
-    <section id="contact" ref={root} aria-labelledby="contact-title" className="relative isolate overflow-hidden border-t border-white/10">
+    <section id="contact" ref={root} aria-labelledby="contact-title" className="cv-auto relative isolate overflow-hidden border-t border-white/10 [--cv-size:790px] md:[--cv-size:900px] lg:[--cv-size:575px]">
       {/* Dark gradient background with overlay (no video: nothing to show that isn't already above). */}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_15%_10%,#1d1c1a_0%,transparent_60%),radial-gradient(60%_60%_at_90%_90%,#15140f_0%,transparent_60%),#050505]">
         <div className="mesh absolute -inset-[20%] opacity-25" />
@@ -51,10 +51,10 @@ export function Contact() {
       <Container className="grid grid-cols-1 gap-10 pb-12 pt-14 md:pb-16 md:pt-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-16">
         <div>
           <p data-reveal="up" className="label inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-gray-200">
-            <span className="ping relative size-2 rounded-full bg-[#3ddc84]" />
+            <span data-pause-offscreen className="ping relative size-2 rounded-full bg-[#3ddc84]" />
             {SITE.status}
           </p>
-          <Lines id="contact-title" lines={['Get in', <Accent key="a">touch</Accent>]} className="mt-6 text-[clamp(2.75rem,9vw,6.5rem)]" />
+          <Lines id="contact-title" scrub lines={['Get in', <Accent key="a">touch</Accent>]} className="mt-6 text-[clamp(2.75rem,9vw,6.5rem)]" />
           <p data-reveal="up" className="mt-6 max-w-md text-lg leading-relaxed text-gray-300">
             Looking for a student developer or product role. If you are hiring, or want to talk about one of the projects, email is the fastest way to reach me.
           </p>
@@ -69,7 +69,7 @@ export function Contact() {
         </div>
 
         <div data-panel-drift>
-          <div data-panel className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm md:p-4">
+          <div data-panel className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-3 md:p-4">
             <ul>
               {ROWS.map((r, i) => (
                 <li key={r.label} className={i ? 'border-t border-white/10' : ''}>

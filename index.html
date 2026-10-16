@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yoav Dory - Portfolio</title>
+    <meta
+      name="description"
+      content="Yoav Dory: second-year Computer Science & Entrepreneurship student at Reichman University (GPA 92) and former IDF Combat ICT Officer. Projects: PermissionGuard, glassbox, EastWire. Open to student developer and product roles."
+    />
+    <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
+    <!-- VITE_SITE_URL comes from .env (or the host build settings) and Vite fills it in at build time. -->
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" as="image" href="/assets/yoav.webp" type="image/webp" fetchpriority="high" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content="Yoav Dory - Portfolio" />
+    <meta property="og:title" content="Yoav Dory - Portfolio" />
+    <meta property="og:description" content="Student developer & product. CS & Entrepreneurship at Reichman University, former IDF Combat ICT Officer. AI, security and data projects." />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Yoav Dory - Portfolio. Student Developer & Product." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Yoav Dory - Portfolio" />
+    <meta name="twitter:description" content="Student developer & product. AI, security and data projects: PermissionGuard, glassbox, EastWire." />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Yoav Dory",
+        "url": "%VITE_SITE_URL%/",
+        "image": "%VITE_SITE_URL%/og.jpg",
+        "jobTitle": "Computer Science & Entrepreneurship student",
+        "alumniOf": { "@type": "CollegeOrUniversity", "name": "Reichman University" },
+        "sameAs": ["https://github.com/YOAV-DORY", "https://www.linkedin.com/in/yoav-dory"]
+      }
+    </script>
+
+    <script>
+      // Decide before first paint whether the intro plays, so the prerendered hero never flashes.
+      // It plays only for motion-OK visitors landing on the top of the page, and at most once per tab.
+      // A failsafe drops the intro state after 4.5 s even if the app script never runs.
+      ;(function () {
+        var d = document.documentElement
+        var motionOk = window.matchMedia('(prefers-reduced-motion: no-preference)').matches
+        var seen = false
+        try { seen = sessionStorage.getItem('yd.intro') === '1' } catch (e) {}
+        if (motionOk && !seen && !location.hash && window.scrollY === 0) {
+          d.classList.add('intro')
+          window.__introFailsafe = setTimeout(function () { d.classList.remove('intro') }, 4500)
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"><!--app--></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

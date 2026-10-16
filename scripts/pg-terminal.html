@@ -1,0 +1,96 @@
+<!doctype html>
+<!--
+  Terminal replay for the PermissionGuard video (scripts/record.mjs renders it frame by frame).
+  Every output line below is real output captured on 2026-10-16 from the PermissionGuard repo
+  (`python -m permission_guard check ...` and `pytest`); only the home directory is shortened to ~.
+  The typing is the only thing added. render(t) draws the state at time t (ms), so frames are exact.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  /* Full-bleed terminal screen: the site draws the window bar around it. The 1280x912 frame is the
+     parallax layer (114% of a 16:10 frame) that drifts up to 125px, so the text stays between
+     y = 140 and y = 777: visible at every scroll position. */
+  html, body { margin: 0; height: 100%; background: #07090c; }
+  body { font: 18px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .screen { position: absolute; inset: 140px 64px 135px; overflow: hidden; }
+  .scroll { position: absolute; left: 0; right: 0; top: 0; }
+  .l { white-space: pre; color: #c5ced8; min-height: 1.55em; }
+  .p { color: #7ee2a8; }
+  .allow { color: #7ee2a8; font-weight: 700; }
+  .ask { color: #f2c46d; font-weight: 700; }
+  .deny { color: #ff6b6b; font-weight: 700; }
+  .dim { color: #7d8894; }
+  .ok { color: #7ee2a8; }
+  .cursor { display: inline-block; width: .6em; height: 1.1em; background: #c5ced8; vertical-align: -0.18em; }
+</style>
+</head>
+<body>
+<div class="screen"><div class="scroll" id="out"></div></div>
+<script>
+const DOTS = '.'.repeat(72)
+// [command, output lines]. Output: [cssClassOfFirstWord, text] pairs or plain strings.
+const STEPS = [
+  ['python -m permission_guard check --action read_file notes.txt', [
+    ['allow', 'ALLOW  ', 'read_file-inside-sandbox'],
+    '       read_file inside sandbox is \'allow\' by policy',
+    '       resolves to: ~/PermissionGuard/sandbox/notes.txt',
+  ]],
+  ['python -m permission_guard check --action delete_file notes.txt', [
+    ['ask', 'ASK    ', 'delete_file-inside-sandbox'],
+    '       delete_file inside sandbox is \'ask\' by policy',
+    '       resolves to: ~/PermissionGuard/sandbox/notes.txt',
+    '       (a human would be asked before this runs)',
+  ]],
+  ['python -m permission_guard check "rm -rf /"', [
+    ['deny', 'DENY   ', 'rm-recursive'],
+    '       dangerous command (recursive delete)',
+  ]],
+  ['pytest', [
+    ...['13', '26', '39', '52', '66', '79', '92'].map((p) => `${DOTS} [${p.padStart(3)}%]`),
+    '.'.repeat(40) + ' '.repeat(33) + '[100%]',
+    ['ok', '537 passed, 7 xfailed', ' in 11.41s'],
+  ]],
+]
+const CHAR = 26, AFTER_CMD = 380, LINE = 70, PAUSE = 900, PYTEST_LINE = 150
+// Build a timeline of events: {at, line} where line is html.
+const events = []
+let t = 400
+for (const [cmd, out] of STEPS) {
+  events.push({ at: t, type: 'cmd', cmd, dur: cmd.length * CHAR })
+  t += cmd.length * CHAR + AFTER_CMD
+  for (const line of out) {
+    events.push({ at: t, type: 'out', line })
+    t += cmd === 'pytest' ? PYTEST_LINE : LINE
+  }
+  t += PAUSE
+}
+window.__duration = t + 900
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+const fmt = (line) => typeof line === 'string' ? `<span class="dim">${esc(line)}</span>` : `<span class="${line[0]}">${esc(line[1])}</span>${esc(line[2])}`
+window.render = (now) => {
+  const rows = []
+  let typing = false
+  for (const e of events) {
+    if (e.at > now) break
+    if (e.type === 'cmd') {
+      const n = Math.min(e.cmd.length, Math.floor((now - e.at) / CHAR))
+      typing = n < e.cmd.length || now - e.at < e.dur + AFTER_CMD
+      rows.push(`<span class="p">$ </span>${esc(e.cmd.slice(0, n))}${typing ? '<i class="cursor"></i>' : ''}`)
+    } else {
+      typing = false
+      rows.push(fmt(e.line))
+    }
+  }
+  if (!typing) rows.push(`<span class="p">$ </span>${Math.floor(now / 530) % 2 ? '' : '<i class="cursor"></i>'}`)
+  const out = document.getElementById('out')
+  out.innerHTML = rows.map((r) => `<div class="l">${r}</div>`).join('')
+  // Starts at the top like a fresh terminal and scrolls once the screen is full.
+  const overflow = out.offsetHeight - out.parentElement.clientHeight
+  out.style.transform = overflow > 0 ? `translateY(${-overflow}px)` : ''
+}
+window.render(0)
+</script>
+</body>
+</html>

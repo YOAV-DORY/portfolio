@@ -48,12 +48,14 @@ export const ABOUT: Array<{ text: string; bold?: boolean }> = [
 export const LANGUAGES = 'Hebrew (native) · English (fluent)'
 
 export type Entry = { role: string; org: string; dates?: string; bullets: string[] }
-export type Track = { title: string; summary: string; entries: Entry[] }
+/** highlights: the one or two lines a skimming reader sees on the row itself, without opening it. */
+export type Track = { title: string; summary: string; highlights: string[]; entries: Entry[] }
 
 export const TRACKS: Track[] = [
   {
     title: 'Military service',
     summary: 'IDF · Combat ICT Officer, now Captain in the reserves',
+    highlights: ['Led a team of 23 and delivered 10+ end-to-end projects with defense-tech companies', 'Senior-ranking ICT officer in the brigade during deployment'],
     entries: [
       {
         role: 'Combat ICT Officer',
@@ -81,6 +83,7 @@ export const TRACKS: Track[] = [
   {
     title: 'Education',
     summary: 'B.Sc. Computer Science & Entrepreneurship · Reichman University',
+    highlights: ['GPA 92 after the first year', 'Combined CS and Entrepreneurship track, 2025–2028'],
     entries: [
       {
         role: 'B.Sc. in Computer Science & Entrepreneurship',
@@ -98,6 +101,7 @@ export const TRACKS: Track[] = [
   {
     title: 'Volunteering',
     summary: 'Youth movement counselor · Givat Shmuel',
+    highlights: ['Led group activities and mentored teenagers, 2016–2018'],
     entries: [
       {
         role: 'Youth Movement Counselor',

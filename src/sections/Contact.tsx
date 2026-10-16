@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { Accent, Arrow, Container, Lines, Pill } from '../components/ui'
 import { SITE } from '../content/site'
 import { gsap, MEDIA, type MediaConditions } from '../motion/gsap'
-import { useReveal } from '../motion/useReveal'
+import { playOnEnter, useReveal } from '../motion/useReveal'
 
 // The round icon buttons repeat the text links for the pointer; keyboard and screen readers use the text link.
 const ROWS: Array<{ label: string; value: string; href: string; icon: ReactNode }> = [
@@ -15,7 +15,7 @@ export function Contact() {
   const root = useRef<HTMLElement>(null)
   useReveal(root)
 
-  // Panel: rises 48px and fades over 1.1s, rows rise from their masks; on desktop it drifts ±3.5%.
+  // Panel: rises 48px and fades in, rows rise from their masks; on desktop it drifts ±3.5%.
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -24,9 +24,10 @@ export function Contact() {
       const { motion, desktop } = ctx.conditions as MediaConditions
       if (!motion) return
       const panel = el.querySelector('[data-panel]')!
-      const trigger = { trigger: panel, start: 'top 88%', once: true }
-      gsap.from(panel, { y: 48, autoAlpha: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: trigger })
-      gsap.from(el.querySelectorAll('[data-row]'), { yPercent: 100, duration: 0.85, ease: 'power3.out', stagger: 0.08, delay: 0.25, scrollTrigger: trigger })
+      const tl = gsap.timeline({ paused: true })
+      tl.from(panel, { y: 48, autoAlpha: 0, duration: 0.8, ease: 'power3.out' })
+      tl.from(el.querySelectorAll('[data-row]'), { yPercent: 100, duration: 0.6, ease: 'power3.out', stagger: 0.06 }, 0.15)
+      playOnEnter(panel, tl)
       if (desktop) {
         gsap.fromTo(
           el.querySelector('[data-panel-drift]'),
@@ -47,7 +48,7 @@ export function Contact() {
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      <Container className="grid grid-cols-1 gap-16 pb-20 pt-28 md:pt-40 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20">
+      <Container className="grid grid-cols-1 gap-12 pb-16 pt-20 md:pb-20 md:pt-28 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20">
         <div>
           <p data-reveal="up" className="label inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-gray-200">
             <span className="ping relative size-2 rounded-full bg-[#3ddc84]" />

@@ -15,5 +15,5 @@ export const MEDIA = {
 
 export type MediaConditions = { motion: boolean; desktop: boolean; fine: boolean }
 
-/** Defaults of the reveal system: duration .9, power3.out, start at 88% of the viewport, play once. */
-export const REVEAL = { duration: 0.9, ease: 'power3.out', start: 'top 88%' } as const
+/** Defaults of the reveal system: duration .8, power3.out, start at 96% of the viewport (as it enters), play once. */
+export const REVEAL = { duration: 0.8, ease: 'power3.out', start: 'top 96%' } as const

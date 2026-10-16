@@ -1,6 +1,7 @@
 // Hand-written WebGL2 portrait: thousands of instanced tiles, each one cell of the photo.
 // Tiles start as drifting dust, fly home with a staggered delay when flyHome() is called, and the
-// pointer pushes them away; they return when it leaves. The shader is stateless (position is a pure
+// pointer pushes them away; they return when it leaves. resolve() fades the mosaic out (the page shows
+// the full-resolution photo underneath); after that only the tiles the pointer pushes stay visible. The shader is stateless (position is a pure
 // function of time, seed, mouse and hover), so "returning" is just the hover amount easing back to 0.
 
 const VERT = `#version 300 es
@@ -16,6 +17,7 @@ uniform vec2 uMouse;        // pointer in portrait units
 uniform vec2 uScale;        // portrait units -> clip space (keeps the portrait square)
 out vec4 vColor;
 out vec2 vCorner;
+out float vPush;
 
 void main() {
   float delay = aSeed.x * 0.85;
@@ -35,17 +37,21 @@ void main() {
   gl_Position = vec4((pos + aCorner * size) * uScale, 0.0, 1.0);
   vColor = vec4(aColor.rgb * (1.0 + push * 0.5), aColor.a * mix(0.28, 1.0, e));
   vCorner = aCorner;
+  vPush = push;
 }`
 
 const FRAG = `#version 300 es
 precision mediump float;
 in vec4 vColor;
 in vec2 vCorner;
+in float vPush;
+uniform float uResolve;     // 0 = mosaic, 1 = resolved: only pointer-pushed tiles are drawn
+                            // (fragment-only: a uniform in both stages must match precision)
 out vec4 outColor;
 void main() {
   // soft-edged square
   float m = 1.0 - smoothstep(0.36, 0.5, max(abs(vCorner.x), abs(vCorner.y)));
-  float a = vColor.a * m;
+  float a = vColor.a * m * mix(1.0, smoothstep(0.05, 0.6, vPush), uResolve);
   outColor = vec4(vColor.rgb * a, a);   // premultiplied
 }`
 
@@ -58,7 +64,7 @@ export type TilesOptions = {
   onFail?: () => void
 }
 
-export type Tiles = { flyHome(): void; destroy(): void }
+export type Tiles = { flyHome(): void; resolve(): void; destroy(): void }
 
 export function createTiles(canvas: HTMLCanvasElement, opts: TilesOptions): Tiles | null {
   const context = canvas.getContext('webgl2', {
@@ -119,6 +125,7 @@ export function createTiles(canvas: HTMLCanvasElement, opts: TilesOptions): Tile
 
   const u = (name: string) => gl.getUniformLocation(prog, name)
   const uTime = u('uTime'), uStart = u('uStart'), uHover = u('uHover'), uTile = u('uTile'), uMouse = u('uMouse'), uScale = u('uScale')
+  const uResolve = u('uResolve')
   gl.useProgram(prog)
   gl.uniform1f(uTile, 2 / n)
   gl.enable(gl.BLEND)
@@ -133,6 +140,8 @@ export function createTiles(canvas: HTMLCanvasElement, opts: TilesOptions): Tile
   const DUST = 1e6
   let start = opts.assembled ? -DUST : DUST
   let hover = 0
+  let resolveStart = -1 // time resolve() was called; the mosaic fades out over RESOLVE seconds
+  const RESOLVE = 1.2
   let hoverTarget = 0
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
   let visible = true
@@ -205,9 +214,11 @@ export function createTiles(canvas: HTMLCanvasElement, opts: TilesOptions): Tile
     gl.uniform1f(uStart, start)
     gl.uniform1f(uHover, hover)
     gl.uniform2f(uMouse, mouse.x, mouse.y)
+    gl.uniform1f(uResolve, resolveStart < 0 ? 0 : Math.min(1, (t - resolveStart) / RESOLVE))
     gl.clear(gl.COLOR_BUFFER_BIT)
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, count)
-    const settling = start === DUST || t - start < 2.3 || Math.abs(hoverTarget - hover) > 0.002 || hover > 0.002
+    const resolving = resolveStart >= 0 && t - resolveStart < RESOLVE + 0.1
+    const settling = resolving || start === DUST || t - start < 2.3 || Math.abs(hoverTarget - hover) > 0.002 || hover > 0.002
     if (settling) schedule()
   }
   function schedule() {
@@ -218,6 +229,10 @@ export function createTiles(canvas: HTMLCanvasElement, opts: TilesOptions): Tile
   return {
     flyHome() {
       if (start === DUST) start = now()
+      schedule()
+    },
+    resolve() {
+      if (resolveStart < 0) resolveStart = now()
       schedule()
     },
     destroy() {

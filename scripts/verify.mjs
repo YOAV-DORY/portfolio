@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const [base = 'http://localhost:4180', onlyArg = ''] = process.argv.slice(2)
-const only = onlyArg ? onlyArg.split(',') : ['intro', 'widths', 'reduced', 'projects']
+const only = onlyArg ? onlyArg.split(',') : ['intro', 'widths', 'reduced', 'projects', 'fast']
 const out = new URL('../shots/', import.meta.url).pathname
 mkdirSync(out, { recursive: true })
 const report = { base, checks: [] }
@@ -28,6 +28,7 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--use-angle=m
 const WIDTHS = [
   { width: 320, height: 640, mobile: true },
   { width: 390, height: 844, mobile: true },
+  { width: 1280, height: 800, mobile: false },
   { width: 1440, height: 900, mobile: false },
 ]
 const SECTIONS = ['home', 'cv', 'project-1', 'project-2', 'project-3', 'contact']
@@ -92,6 +93,28 @@ async function layoutChecks(page, label, errors) {
       const inner = el.matches('.line-mask') ? el.firstElementChild : el
       if (inner && inner.scrollWidth > el.clientWidth + 2) clipped.push(`${el.tagName.toLowerCase()}: ${el.textContent.trim().slice(0, 40)} (${inner.scrollWidth} > ${el.clientWidth})`)
     }
+    // Empty space: merge the vertical extents of every visible piece of content and find the longest
+    // stretch with none (backgrounds don't count). The review asked for no more than 40vh anywhere.
+    const spans = []
+    for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main li, main a, main img, main video, main canvas, main svg, main dd, main dt, main pre, main button, footer p, footer a')) {
+      if (el.closest('.sr-only, [aria-hidden="true"] .sr-only')) continue
+      const r = el.getBoundingClientRect()
+      if (r.width < 4 || r.height < 4) continue
+      const s = getComputedStyle(el)
+      if (s.visibility === 'hidden' || Number(s.opacity) === 0) continue
+      spans.push([r.top + window.scrollY, r.bottom + window.scrollY])
+    }
+    spans.sort((a, b) => a[0] - b[0])
+    const gaps = []
+    let end = spans.length ? spans[0][1] : 0
+    for (const [a, b] of spans) {
+      if (a > end) {
+        const near = [...document.querySelectorAll('section[id]')].filter((sec) => sec.getBoundingClientRect().top + window.scrollY <= end).pop()
+        gaps.push({ from: Math.round(end), px: Math.round(a - end), vh: +((a - end) / window.innerHeight).toFixed(2), in: near?.id })
+      }
+      end = Math.max(end, b)
+    }
+    gaps.sort((a, b) => b.px - a.px)
     const broken = [...document.images].filter((i) => i.complete && i.naturalWidth === 0 && i.loading !== 'lazy').map((i) => i.src)
     return {
       scrollWidth: document.documentElement.scrollWidth,
@@ -100,12 +123,16 @@ async function layoutChecks(page, label, errors) {
       wide: wide.slice(0, 15),
       hidden: hidden.slice(0, 15),
       clipped,
+      pageHeight: document.documentElement.scrollHeight,
+      emptyMax: gaps[0] ?? null,
+      emptyOver40: gaps.filter((g) => g.vh > 0.4),
       broken,
     }
   })
   report.checks.push({ label, ...result, errors: [...errors] })
-  const flag = result.overflowX || result.wide.length || result.hidden.length || result.clipped.length || result.broken.length || errors.length
-  console.log(`${flag ? 'CHECK' : 'ok   '} ${label}: overflowX=${result.overflowX} wide=${result.wide.length} hidden=${result.hidden.length} clipped=${result.clipped.length} broken=${result.broken.length} errors=${errors.length}`)
+  const flag = result.overflowX || result.wide.length || result.hidden.length || result.clipped.length || result.emptyOver40.length || result.broken.length || errors.length
+  console.log(`${flag ? 'CHECK' : 'ok   '} ${label}: overflowX=${result.overflowX} wide=${result.wide.length} hidden=${result.hidden.length} clipped=${result.clipped.length} broken=${result.broken.length} errors=${errors.length} height=${result.pageHeight} maxEmpty=${result.emptyMax ? `${result.emptyMax.vh}vh in #${result.emptyMax.in}` : '-'}`)
+  for (const g of result.emptyOver40) console.log('      empty', JSON.stringify(g))
   for (const c of result.clipped) console.log('      clipped', c)
 }
 
@@ -222,6 +249,96 @@ if (only.includes('projects')) {
         await page.screenshot({ path: `${out}${id}-${vp.width}-p${k}.png` })
       }
     }
+    await ctx.close()
+  }
+}
+
+// Fast-scroll acceptance pass (from the external review): jump down the page in big programmatic
+// steps, pausing now and then like a skimming reader. At every pause, after 1.3 s: every count-up on
+// screen shows its real value, no revealed text is still hidden, the screen is not near-black, and a
+// screen video on screen is playing. Also: the portrait resolves without a pointer, the intro has a
+// visible skip control, and a menu tap closes the menu and lands the heading below the header.
+if (only.includes('fast')) {
+  for (const vp of [WIDTHS[2], WIDTHS[1]]) {
+    const { ctx, page, errors } = await context(vp, { skipIntro: false })
+    await page.goto(base, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(400)
+    const skip = page.getByRole('button', { name: /skip intro/i })
+    const skipVisible = await skip.isVisible()
+    const box = await skip.boundingBox()
+    await page.waitForTimeout(5800) // intro (~3.5 s) + 2 s + the 1.2 s cross-fade
+    const portrait = await page.evaluate(() => getComputedStyle(document.querySelector('.portrait-static')).opacity)
+    await page.screenshot({ path: `${out}fast-${vp.width}-portrait.png` })
+    console.log(`fast ${vp.width}: skip control visible=${skipVisible} at ${box && `${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}`}; portrait resolved (opacity ${portrait})`)
+
+    const max = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
+    const problems = []
+    let y = 0
+    let stop = 0
+    while (y < max) {
+      for (let i = 0; i < 3 && y < max; i++) {
+        y = Math.min(max, y + Math.round(vp.height * 0.85))
+        await page.evaluate((t) => window.scrollTo({ top: t, behavior: 'instant' }), y)
+        await page.waitForTimeout(40) // ~20 screens per second
+      }
+      await page.waitForTimeout(1300)
+      const state = await page.evaluate(() => {
+        const inView = (el) => {
+          const r = el.getBoundingClientRect()
+          return r.bottom > 64 && r.top < window.innerHeight * 0.94 && r.width > 0 // ignore the last few pixels a reveal is about to enter
+        }
+        const fmt = (el) => new Intl.NumberFormat('en-US', { minimumFractionDigits: +el.dataset.decimals, maximumFractionDigits: +el.dataset.decimals }).format(+el.dataset.count)
+        const wrongNumbers = [...document.querySelectorAll('[data-count]')].filter(inView).filter((el) => el.textContent !== fmt(el)).map((el) => `${el.textContent} (should be ${fmt(el)})`)
+        const hidden = [...document.querySelectorAll('[data-reveal], [data-reveal-group] > *, [data-line], [data-row], [data-panel], .acc-row, [data-verdict], [data-country]')]
+          .filter(inView)
+          .filter((el) => { const st = getComputedStyle(el); return st.visibility === 'hidden' || Number(st.opacity) < 0.99 })
+          .map((el) => el.textContent.trim().slice(0, 40))
+        const videos = [...document.querySelectorAll('video')].filter((v) => { const r = v.getBoundingClientRect(); return r.top < window.innerHeight * 0.8 && r.bottom > window.innerHeight * 0.2 })
+          .map((v) => ({ src: v.currentSrc.split('/').slice(-2).join('/'), readyState: v.readyState, paused: v.paused, t: +v.currentTime.toFixed(2) }))
+        return { y: Math.round(window.scrollY), wrongNumbers, hidden, videos }
+      })
+      const shot = `${out}fast-${vp.width}-stop${String(stop++).padStart(2, '0')}.png`
+      await page.screenshot({ path: shot })
+      const dark = Number(execFileSync(process.env.PYTHON ?? 'python3', ['-c', `from PIL import Image; im = Image.open('${shot}').convert('L'); h = im.histogram(); print(sum(h[:14]) / sum(h))`]).toString())
+      const bad = state.wrongNumbers.length || state.hidden.length || dark > 0.97 || state.videos.some((v) => v.paused || v.readyState < 2)
+      if (bad) problems.push({ ...state, dark: +dark.toFixed(3) })
+      console.log(`  ${bad ? 'CHECK' : 'ok   '} y=${state.y} dark=${dark.toFixed(2)} numbers=${state.wrongNumbers.join(', ') || 'final'} hidden=${state.hidden.length}${state.videos.length ? ' video=' + JSON.stringify(state.videos) : ''}`)
+    }
+    report.checks.push({ label: `fast ${vp.width}`, skipVisible, portrait, problems, errors })
+
+    // Jump straight to each screen video (no scrolling in between) and give it 2 s to start.
+    for (const i of [0, 1]) {
+      const v = await page.evaluate(async (k) => {
+        const el = document.querySelectorAll('video')[k]
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 3, behavior: 'instant' })
+        await new Promise((r) => setTimeout(r, 2000))
+        return { src: el.currentSrc.split('/').slice(-2).join('/'), readyState: el.readyState, paused: el.paused, t: +el.currentTime.toFixed(2) }
+      }, i)
+      console.log(`  jump to video: ${v.src} readyState=${v.readyState} ${v.paused ? 'PAUSED' : 'playing'} t=${v.t}s`)
+      report.checks.push({ label: `video ${vp.width}`, ...v })
+    }
+
+    if (vp.mobile) {
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+      await page.waitForTimeout(300)
+      for (const name of ['CV', 'Projects', 'Contact']) {
+        await page.getByRole('button', { name: /open menu/i }).click()
+        await page.waitForTimeout(700)
+        await page.locator('#mobile-menu').getByRole('link', { name, exact: true }).click()
+        await page.waitForTimeout(1600)
+        const r = await page.evaluate((n) => {
+          const menuClosed = document.getElementById('mobile-menu').hasAttribute('inert') && document.documentElement.style.overflow === ''
+          const section = document.getElementById(n.toLowerCase())
+          const heading = section.querySelector('h2:not(.sr-only), [data-reveal-lines], p.label') ?? section
+          const top = Math.round(heading.getBoundingClientRect().top)
+          const header = Math.round(document.querySelector('header').getBoundingClientRect().bottom)
+          return { menuClosed, headingTop: top, headerBottom: header, hash: location.hash }
+        }, name)
+        console.log(`  menu > ${name}: closed=${r.menuClosed} heading top ${r.headingTop}px vs header bottom ${r.headerBottom}px ${r.headingTop >= r.headerBottom ? 'ok' : 'HIDDEN'} ${r.hash}`)
+        report.checks.push({ label: `menu ${name}`, ...r })
+      }
+    }
+    if (errors.length) console.log('  console errors:', errors)
     await ctx.close()
   }
 }

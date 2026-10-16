@@ -140,7 +140,7 @@ export function Hero() {
       {/* role line + buttons */}
       <Container className="absolute inset-x-0 bottom-[max(1.5rem,5vh)] z-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <p data-intro-fade="" className="text-[clamp(1.35rem,2.4vw,2rem)] leading-tight tracking-tight text-white">
-          <strong className="font-bold">Student Developer</strong> <span className="font-serif font-light italic text-accent">&amp; Product</span>
+          <strong className="font-bold">Student Developer</strong> <span className="font-serif font-light italic text-accent">&amp; Product Builder</span>
         </p>
         <div data-intro-fade="" className="flex flex-wrap gap-3">
           <Pill variant="primary" href={SITE.cv} download="Yoav-Dory-CV.pdf">

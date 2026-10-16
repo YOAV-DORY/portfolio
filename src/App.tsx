@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { FEATURES } from './content/site'
-import { ScrollTrigger } from './motion/gsap'
+import { MEDIA, ScrollTrigger } from './motion/gsap'
 import { Contact, Footer } from './sections/Contact'
 import { Cv } from './sections/Cv'
 import { Hero } from './sections/Hero'
@@ -28,6 +28,28 @@ export default function App() {
       ro.disconnect()
       window.clearTimeout(timer)
     }
+  }, [])
+
+  // In-page links scroll here instead of through CSS scroll-behavior (which fights ScrollTrigger's
+  // measurements). The scroll waits a frame so a mobile menu can close and unlock scrolling first,
+  // then focus moves to the section so keyboard and screen-reader users land there too.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const link = (e.target as Element | null)?.closest?.('a[href^="#"]')
+      const id = link?.getAttribute('href')?.slice(1)
+      const target = id ? document.getElementById(id) : null
+      if (!target) return
+      e.preventDefault()
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: window.matchMedia(MEDIA.motion).matches ? 'smooth' : 'auto', block: 'start' })
+        history.pushState(null, '', `#${id}`)
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+        target.focus({ preventScroll: true })
+      })
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
   }, [])
 
   return (

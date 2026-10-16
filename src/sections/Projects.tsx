@@ -5,7 +5,7 @@ import { VideoSlot } from '../components/VideoSlot'
 import { PROJECTS, type GalleryItem, type Media, type Project } from '../content/projects'
 import { SITE } from '../content/site'
 import { gsap, MEDIA, type MediaConditions } from '../motion/gsap'
-import { numberFormat, useReveal } from '../motion/useReveal'
+import { numberFormat, playOnEnter, useReveal } from '../motion/useReveal'
 import { CodeCard } from '../visuals/CodeCard'
 import { Diagram } from '../visuals/Diagrams'
 
@@ -14,7 +14,7 @@ export function Projects() {
   useReveal(intro)
   return (
     <section id="projects" aria-labelledby="projects-title" className="relative">
-      <div ref={intro} className="border-t border-white/10 pb-10 pt-28 md:pt-40">
+      <div ref={intro} className="border-t border-white/10 pb-6 pt-20 md:pb-8 md:pt-28">
         <Container className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div>
             <Label className="mb-6">
@@ -47,7 +47,7 @@ function ProjectSection({ project: p }: { project: Project }) {
       ref={root}
       aria-labelledby={titleId}
       style={{ '--tint': p.tint, '--word': p.tint } as CSSProperties}
-      className="relative isolate min-h-screen overflow-hidden py-24 md:py-36"
+      className="relative isolate overflow-hidden py-16 md:py-24"
     >
       {/* Generated abstract backdrop (image kind 3): CSS gradient mesh, grid and grain in the tint. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
@@ -90,7 +90,7 @@ function ProjectSection({ project: p }: { project: Project }) {
         </div>
 
         {/* hero visual */}
-        <figure className="mt-14 md:mt-20">
+        <figure className="mt-10 md:mt-14">
           <div data-beat-stage className="relative [perspective:1400px]">
             {p.beat === 'tilt' && <CountryTicker />}
             <div data-beat-frame className="relative">
@@ -117,7 +117,7 @@ function ProjectSection({ project: p }: { project: Project }) {
         )}
 
         {/* what it does + how it is built */}
-        <div className="mt-20 grid grid-cols-1 gap-14 md:mt-28 md:grid-cols-12">
+        <div className="mt-14 grid grid-cols-1 gap-12 md:mt-20 md:grid-cols-12">
           <div className="md:col-span-7">
             <Label className="mb-6">What it does</Label>
             <ol data-reveal-group className="space-y-5">
@@ -142,7 +142,7 @@ function ProjectSection({ project: p }: { project: Project }) {
         </div>
 
         {/* numbers */}
-        <dl className="mt-20 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:mt-28 lg:grid-cols-4">
+        <dl className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:mt-20 lg:grid-cols-4">
           {p.numbers.map((n) => (
             <div key={n.label} className="flex flex-col-reverse justify-end gap-2 bg-[#070707] px-4 py-7 md:px-7 md:py-10">
               <dt className="text-sm leading-snug text-gray-400">{n.label}</dt>
@@ -157,7 +157,7 @@ function ProjectSection({ project: p }: { project: Project }) {
         </dl>
 
         {/* gallery */}
-        <div className="mt-20 grid grid-cols-1 gap-x-8 gap-y-14 md:mt-28 md:grid-cols-2">
+        <div className="mt-14 grid grid-cols-1 gap-x-8 gap-y-12 md:mt-20 md:grid-cols-2">
           {p.gallery.map((g, i) => (
             <figure
               key={i}
@@ -319,19 +319,14 @@ function useBeat(scope: RefObject<HTMLElement | null>, beat: Project['beat']) {
       const stage = el.querySelector('[data-beat-stage]')!
       const frame = el.querySelector('[data-beat-frame]')!
       if (beat === 'stamp') {
-        gsap.from(frame, { y: 60, autoAlpha: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: stage, start: 'top 85%', once: true } })
-        gsap.from(el.querySelectorAll('[data-verdict]'), {
-          scale: 1.9,
-          rotate: -10,
-          autoAlpha: 0,
-          duration: 0.5,
-          ease: 'back.out(2.2)',
-          stagger: 0.32,
-          scrollTrigger: { trigger: stage, start: 'top 55%', once: true },
-        })
+        const tl = gsap.timeline({ paused: true })
+        tl.from(frame, { y: 60, autoAlpha: 0, duration: 0.8, ease: 'power3.out' })
+        tl.from(el.querySelectorAll('[data-verdict]'), { scale: 1.9, rotate: -10, autoAlpha: 0, duration: 0.4, ease: 'back.out(2.2)', stagger: 0.18 }, 0.35)
+        playOnEnter(stage, tl)
       }
       if (beat === 'wipe') {
-        const scrub = { trigger: stage, start: 'top 85%', end: desktop ? 'top 30%' : 'top 45%', scrub: 0.6 }
+        // Finishes while the frame is still entering, so nobody reads a half-covered screenshot.
+        const scrub = { trigger: stage, start: 'top 95%', end: 'top 60%', scrub: 0.4 }
         gsap.fromTo(frame, { clipPath: 'inset(0% 100% 0% 0% round 16px)' }, { clipPath: 'inset(0% 0% 0% 0% round 16px)', ease: 'none', scrollTrigger: scrub })
         gsap.fromTo(el.querySelector('[data-sheen]'), { xPercent: -100 }, { xPercent: 320, ease: 'none', scrollTrigger: scrub })
       }
@@ -339,9 +334,9 @@ function useBeat(scope: RefObject<HTMLElement | null>, beat: Project['beat']) {
         gsap.fromTo(
           frame,
           { rotateX: desktop ? 24 : 12, scale: 0.9, y: 40, transformOrigin: '50% 100%' },
-          { rotateX: 0, scale: 1, y: 0, ease: 'none', scrollTrigger: { trigger: stage, start: 'top 95%', end: 'top 35%', scrub: 0.6 } },
+          { rotateX: 0, scale: 1, y: 0, ease: 'none', scrollTrigger: { trigger: stage, start: 'top 98%', end: 'top 55%', scrub: 0.4 } },
         )
-        gsap.from(el.querySelectorAll('[data-country]'), { x: 60, autoAlpha: 0, duration: 0.8, ease: 'power3.out', stagger: 0.1, scrollTrigger: { trigger: stage, start: 'top 85%', once: true } })
+        playOnEnter(stage, gsap.from(el.querySelectorAll('[data-country]'), { x: 60, autoAlpha: 0, duration: 0.6, ease: 'power3.out', stagger: 0.07, paused: true }))
       }
     })
     return () => mm.revert()

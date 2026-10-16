@@ -71,12 +71,17 @@ Or without Git: `npm run build`, then `npx wrangler pages deploy dist --project-
   `data-reveal-group`, `data-reveal-lines`, `data-parallax`, `data-magnetic`, `data-count`) inside
   `gsap.matchMedia`. Nothing animates for `prefers-reduced-motion: reduce`; the prerendered HTML is
   already the final state, so reduced motion just shows it.
+- Reveals take 0.8 s and count-ups 1.2 s, starting as content enters the screen. `playOnEnter` snaps
+  anything to its final state when it is reached by a fast scroll or an anchor jump, or scrolled past
+  mid-animation, so a skimming reader never sees blank blocks or half-counted numbers.
 - `src/sections/Hero.tsx`: the intro. PORTFOLIO assembles, morphs a letter every 150 ms into YOAV
   DORY, moves to place, the halves split, the buttons rise; about 3.3 s, scroll locked meanwhile,
   "Skip intro" or Esc ends it. `index.html` decides before first paint whether it plays, with a
   4.5 s failsafe.
 - `src/webgl/tiles.ts`: instanced tiles sampled from the photo, dust to portrait, pushed by the
-  pointer. One WebGL2 context, DPR capped at 2, draws only while something moves.
+  pointer. Two seconds after the intro the mosaic fades into the full-resolution photo on every
+  device; after that the pointer only scatters a few tiles around itself. One WebGL2 context, DPR
+  capped at 2, draws only while something moves.
 - Each project has its own beat (`useBeat` in `src/sections/Projects.tsx`): verdict stamps,
   a glass wipe, a 3D tilt.
 
@@ -106,4 +111,8 @@ PYTHON=/path/to/python-with-pillow node scripts/verify.mjs http://localhost:4180
 Writes `shots/` (gitignored): the intro at fixed times, stitched full pages and per-section shots at
 320, 390 and 1440 px, a reduced-motion pass, the mobile menu, and each project scrolled in six steps.
 It fails loudly on sideways overflow, elements wider than the viewport, clipped text, text left
-hidden after its reveal, broken images and console errors.
+hidden after its reveal, more than 40vh of empty space, broken images and console errors. The `fast`
+pass scrolls in big programmatic jumps with pauses (1280 and 390 px) and checks that numbers on
+screen are final, nothing is hidden, no screen is near-black, the videos play, the portrait resolves
+without a pointer, the intro shows a skip control, and menu links close the menu and land below the
+header.

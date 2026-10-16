@@ -2,7 +2,7 @@ import { Fragment, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Accent, Arrow, Container, Label, Lines, Pill } from '../components/ui'
 import { ABOUT, LANGUAGES, SITE, SKILLS, TRACKS, type Track } from '../content/site'
 import { gsap, MEDIA, type MediaConditions } from '../motion/gsap'
-import { useReveal } from '../motion/useReveal'
+import { playOnEnter, useReveal } from '../motion/useReveal'
 
 export function Cv() {
   return (
@@ -23,8 +23,8 @@ function About() {
   const root = useRef<HTMLDivElement>(null)
   useReveal(root)
 
-  // Desktop: scrubbed word-by-word colour reveal. Words light up as they enter the lower fifth of the
-  // screen, so everything on screen is readable. Mobile: one fade-up. Reduced motion: nothing.
+  // Desktop: scrubbed word-by-word colour reveal. Each word lights up as it enters the bottom of the
+  // screen, so whatever is on screen is readable. Mobile: one fade-up. Reduced motion: nothing.
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -34,20 +34,20 @@ function About() {
       if (!motion) return
       const card = el.querySelector('[data-about-card]')!
       if (!desktop) {
-        gsap.from(card, { y: 40, autoAlpha: 0, duration: 0.9, ease: 'power3.out', scrollTrigger: { trigger: card, start: 'top 88%', once: true } })
+        playOnEnter(card, gsap.from(card, { y: 40, autoAlpha: 0, duration: 0.8, ease: 'power3.out', paused: true }))
         return
       }
       gsap.fromTo(
         el.querySelectorAll('[data-word]'),
         { color: '#52525b', opacity: 0.2 },
-        { color: '#ffffff', opacity: 1, ease: 'none', stagger: 0.05, scrollTrigger: { trigger: card, start: 'top 80%', end: 'bottom 80%', scrub: true } },
+        { color: '#ffffff', opacity: 1, ease: 'none', stagger: 0.05, scrollTrigger: { trigger: card, start: 'top 92%', end: 'bottom 95%', scrub: true } },
       )
     })
     return () => mm.revert()
   }, [])
 
   return (
-    <div ref={root} className="pb-24 pt-28 md:pb-36 md:pt-40">
+    <div ref={root} className="pb-16 pt-20 md:pb-24 md:pt-28">
       <Container className="grid grid-cols-1 gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
         <div>
           <Label>
@@ -99,22 +99,15 @@ function Path() {
     const mm = gsap.matchMedia(el)
     mm.add(MEDIA.motion, () => {
       const rows = el.querySelectorAll('.acc-row')
-      gsap.from(rows, {
-        yPercent: 12,
-        autoAlpha: 0,
-        '--rule-scale': 0,
-        duration: 0.7,
-        ease: 'power3.out',
-        stagger: 0.08,
-        scrollTrigger: { trigger: el.querySelector('[data-rows]'), start: 'top 85%', once: true },
-      })
+      const tween = gsap.from(rows, { yPercent: 12, autoAlpha: 0, '--rule-scale': 0, duration: 0.6, ease: 'power3.out', stagger: 0.06, paused: true })
+      playOnEnter(el.querySelector('[data-rows]')!, tween)
     })
     return () => mm.revert()
   }, [])
 
   return (
-    <div ref={root} className="pb-24 md:pb-36">
-      <Container className="mb-12 flex flex-col gap-6 md:mb-16 md:flex-row md:items-end md:justify-between">
+    <div ref={root} className="pb-16 md:pb-24">
+      <Container className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
         <div>
           <Label className="mb-6">
             <span className="text-tag">02</span> &nbsp;/ Experience
@@ -148,9 +141,20 @@ function Row({ track, index, open, onToggle }: { track: Track; index: number; op
         >
           <Container className="flex items-center gap-5 py-7 md:gap-10 md:py-10">
             <span className="acc-muted label w-8 shrink-0 text-gray-500">{String(index + 1).padStart(2, '0')}</span>
-            <span className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-baseline md:justify-between md:gap-8">
-              <span className="heading text-[clamp(1.9rem,5.5vw,4.25rem)]">{track.title}</span>
-              <span className="acc-muted text-sm text-gray-400 md:text-right">{track.summary}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between md:gap-8">
+                <span className="heading text-[clamp(1.9rem,5.5vw,4.25rem)]">{track.title}</span>
+                <span className="acc-muted text-sm text-gray-400 md:text-right">{track.summary}</span>
+              </span>
+              {/* What a skimming reader sees without opening the row (hidden once it is open). */}
+              <span className="acc-highlights acc-muted mt-1 flex flex-col gap-1.5 text-[15px] leading-snug text-gray-300 md:flex-row md:flex-wrap md:gap-x-8">
+                {track.highlights.map((h) => (
+                  <span key={h} className="flex gap-2.5">
+                    <span aria-hidden="true" className="mt-[0.45em] size-1.5 shrink-0 bg-accent" />
+                    {h}
+                  </span>
+                ))}
+              </span>
             </span>
             <Arrow className="acc-arrow !size-5 shrink-0 rotate-45 md:!size-6" />
           </Container>
@@ -187,8 +191,8 @@ function Skills() {
   const root = useRef<HTMLDivElement>(null)
   useReveal(root)
   return (
-    <div ref={root} className="pb-28 md:pb-40">
-      <Container className="mb-12 md:mb-16">
+    <div ref={root} className="pb-20 md:pb-28">
+      <Container className="mb-10 md:mb-12">
         <Label className="mb-6">
           <span className="text-tag">03</span> &nbsp;/ Skills
         </Label>

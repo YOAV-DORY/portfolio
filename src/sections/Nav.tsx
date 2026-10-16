@@ -87,9 +87,8 @@ export function Nav() {
         Skip to content
       </a>
       <Container className="flex h-16 items-center justify-between gap-6">
-        <a href="#home" className="relative z-[60] text-[15px] tracking-tight text-white" aria-label="Yoav Dory - Portfolio, back to top">
-          <span className="font-black uppercase tracking-tighter">Yoav Dory</span>
-          <span className="text-gray-400"> - Portfolio</span>
+        <a href="#home" className="relative z-[60] text-base font-black uppercase tracking-tighter text-white" aria-label="Yoav Dory, back to top">
+          Yoav Dory
         </a>
 
         <nav aria-label="Sections" className="hidden md:block">
@@ -113,12 +112,6 @@ export function Nav() {
             ))}
           </ul>
         </nav>
-
-        <div className="hidden md:block">
-          <Pill href={SITE.cv} download="Yoav-Dory-CV.pdf" className="!min-h-9 !px-4 !py-1.5 !text-xs">
-            CV
-          </Pill>
-        </div>
 
         <button
           ref={burger}

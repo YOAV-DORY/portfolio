@@ -1,17 +1,20 @@
 import { useLayoutEffect, type RefObject } from 'react'
-import { gsap, MEDIA, REVEAL, type MediaConditions } from './gsap'
+import { gsap, MEDIA, REVEAL, ScrollTrigger, type MediaConditions } from './gsap'
 
 /**
  * The reveal system. Scoped to one section: finds data attributes inside `scope` and animates them.
  *
  *   data-reveal="up|down|left|right|scale|fade"  enters from y ±40 / x ±48 / scale .94, opacity 0
  *   data-reveal-delay="0.2"                      extra delay in seconds
- *   data-reveal-group                            children enter from y 32, stagger .08 (data-reveal-stagger)
+ *   data-reveal-group                            children enter from y 32, stagger .06 (data-reveal-stagger)
  *   data-reveal-lines                            each [data-line] rises from yPercent 110 inside its mask
  *   data-parallax-frame > data-parallax          image drifts yPercent -6 to 6 with scroll (scrub)
  *   data-parallax="top"                          same travel, anchored at the top: yPercent 0 to -12
  *   data-magnetic=".3"                           follows the pointer (fine pointers only), factor = value
- *   data-count="537" data-decimals="0"           counts up from 0 when it enters
+ *   data-count="537" data-decimals="0"           counts up from 0 in 1.2 s when it enters
+ *
+ * Reveals last 0.8 s and snap to their final state when scrolled past or reached by a fast scroll
+ * (see playOnEnter), so a quick scroller never sees blank blocks or wrong numbers.
  *
  * Everything runs inside gsap.matchMedia: nothing moves for prefers-reduced-motion, magnetic needs a
  * fine pointer. The HTML is complete without JS, so reduced motion simply shows the final state.
@@ -26,40 +29,27 @@ export function useReveal(scope: RefObject<HTMLElement | null>) {
       const { motion, fine } = ctx.conditions as MediaConditions
       if (!motion) return
       const all = <T extends HTMLElement>(sel: string) => Array.from(root.querySelectorAll<T>(sel))
-      const trigger = (el: Element) => ({ trigger: el, start: REVEAL.start, once: true })
+      const base = { duration: REVEAL.duration, ease: REVEAL.ease, paused: true }
 
       for (const el of all('[data-reveal]')) {
-        gsap.from(el, {
-          ...FROM[el.dataset.reveal as Direction],
-          autoAlpha: 0,
-          duration: REVEAL.duration,
-          ease: REVEAL.ease,
-          delay: Number(el.dataset.revealDelay ?? 0),
-          scrollTrigger: trigger(el),
-        })
+        const tween = gsap.from(el, { ...base, ...FROM[el.dataset.reveal as Direction], autoAlpha: 0, delay: Number(el.dataset.revealDelay ?? 0) })
+        playOnEnter(el, tween)
       }
 
       for (const el of all('[data-reveal-group]')) {
-        gsap.from(el.children, {
+        const tween = gsap.from(el.children, {
+          ...base,
           y: 32,
           autoAlpha: 0,
-          duration: REVEAL.duration,
-          ease: REVEAL.ease,
-          stagger: Number(el.dataset.revealStagger ?? 0.08),
+          stagger: Number(el.dataset.revealStagger ?? 0.06),
           delay: Number(el.dataset.revealDelay ?? 0),
-          scrollTrigger: trigger(el),
         })
+        playOnEnter(el, tween)
       }
 
       for (const el of all('[data-reveal-lines]')) {
-        gsap.from(el.querySelectorAll('[data-line]'), {
-          yPercent: 110,
-          duration: 1.1,
-          ease: REVEAL.ease,
-          stagger: 0.12,
-          delay: Number(el.dataset.revealDelay ?? 0),
-          scrollTrigger: trigger(el),
-        })
+        const tween = gsap.from(el.querySelectorAll('[data-line]'), { ...base, yPercent: 110, stagger: 0.08, delay: Number(el.dataset.revealDelay ?? 0) })
+        playOnEnter(el, tween)
       }
 
       for (const frame of all('[data-parallax-frame]')) {
@@ -73,18 +63,16 @@ export function useReveal(scope: RefObject<HTMLElement | null>) {
         )
       }
 
+      // Count-ups keep their real value in the HTML until they start, then run 0 to target in 1.2 s.
       for (const el of all('[data-count]')) {
-        const target = Number(el.dataset.count)
         const format = numberFormat(Number(el.dataset.decimals ?? 0))
         const state = { v: 0 }
-        el.textContent = format(0)
-        gsap.to(state, {
-          v: target,
-          duration: 1.6,
-          ease: 'power2.out',
-          scrollTrigger: trigger(el),
-          onUpdate: () => void (el.textContent = format(state.v)),
-        })
+        const tween = gsap.fromTo(
+          state,
+          { v: 0 },
+          { v: Number(el.dataset.count), duration: COUNT_DURATION, ease: 'power2.out', paused: true, immediateRender: false, onUpdate: () => void (el.textContent = format(state.v)) },
+        )
+        playOnEnter(el, tween)
       }
 
       if (!fine) return
@@ -93,6 +81,32 @@ export function useReveal(scope: RefObject<HTMLElement | null>) {
     })
     return () => mm.revert()
   }, [scope])
+}
+
+export const COUNT_DURATION = 1.2
+const FAST = 2500 // px/s: faster than this, nobody is reading, so skip straight to the final state
+
+/**
+ * Plays a paused reveal when `el` enters (top at 96% of the viewport). It never leaves a reader looking
+ * at a half-finished state: an element that is already above the viewport, or that is reached by a
+ * fast scroll or an anchor jump, snaps to its final state, and so does anything still animating when
+ * it scrolls out of view. Must run inside a gsap context (matchMedia) so it is cleaned up with it.
+ */
+export function playOnEnter(el: Element, tween: gsap.core.Animation, start: string = REVEAL.start) {
+  if (el.getBoundingClientRect().bottom < 0) {
+    tween.progress(1)
+    return
+  }
+  ScrollTrigger.create({
+    trigger: el,
+    start,
+    end: 'bottom top',
+    onEnter: (self) => (Math.abs(self.getVelocity()) > FAST ? tween.progress(1) : tween.play()),
+    onLeave: (self) => {
+      tween.progress(1)
+      self.kill()
+    },
+  })
 }
 
 type Direction = 'up' | 'down' | 'left' | 'right' | 'scale' | 'fade'

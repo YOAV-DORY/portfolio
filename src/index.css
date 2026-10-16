@@ -34,7 +34,13 @@
   html {
     background: var(--bg);
     -webkit-text-size-adjust: 100%;
-    scroll-padding-top: 4.5rem;
+    scroll-padding-top: 4.5rem; /* anchor jumps land below the fixed 4rem header */
+  }
+  section[id] {
+    scroll-margin-top: 0.5rem;
+  }
+  [tabindex='-1']:focus {
+    outline: none;
   }
   body {
     background: var(--bg);
@@ -53,11 +59,6 @@
     outline: 2px solid var(--accent);
     outline-offset: 3px;
     border-radius: 6px;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    html:not(.intro) {
-      scroll-behavior: smooth;
-    }
   }
 }
 
@@ -159,14 +160,23 @@
   transform-origin: left;
 }
 .acc-panel {
-  max-height: 0;
+  /* Grid rows 0fr to 1fr animates to the content's real height (a fixed max-height clipped the long
+     military row on phones). */
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
+  transition: grid-template-rows 500ms var(--ease-out), opacity 400ms ease;
+}
+.acc-panel > * {
+  min-height: 0;
   overflow: hidden;
-  transition: max-height 500ms var(--ease-out), opacity 400ms ease;
 }
 .acc-row[data-open='true'] .acc-panel {
-  max-height: 800px;
+  grid-template-rows: 1fr;
   opacity: 1;
+}
+.acc-row[data-open='true'] .acc-highlights {
+  display: none;
 }
 .acc-arrow {
   transition: transform 500ms var(--ease-out);
